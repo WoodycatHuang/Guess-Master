@@ -1,17 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FlipRevealCard } from '../components/FlipRevealCard';
+import { NeonButton, PixelPanel, PixelText } from '../components/ui';
 import { FLIP_INTERVAL_MS } from '../constants/result';
 import {
   cardNumberAtSortIndex,
   evaluateSortedCards,
 } from '../services/sync/roomUtils';
+import { theme } from '../theme';
 import { Room, User } from '../types/room';
 
 interface Props {
@@ -87,33 +83,40 @@ export function ResultScreen({
   }, [phase, revealedCount, room]);
 
   const success = phase === 'done' && outcome.success;
-  const failed = phase === 'done' && !outcome.success;
   const isHost = self.id === room.hostId;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.roomId}>房间 {room.roomId}</Text>
+        <PixelText variant="bodyLatin" tone="secondary">
+          ROOM {room.roomId}
+        </PixelText>
         <Pressable onPress={onBackToLobby} hitSlop={8}>
-          <Text style={styles.backLink}>返回大厅</Text>
+          <PixelText variant="labelCn" tone="primary">
+            返回大厅
+          </PixelText>
         </Pressable>
       </View>
 
-      <View style={styles.topicBox}>
-        <Text style={styles.topicLabel}>本轮题目</Text>
-        <Text style={styles.topicText}>{room.topic}</Text>
-      </View>
+      <PixelPanel style={styles.topicBox}>
+        <PixelText variant="captionLatin" tone="muted">
+          TOPIC // 本轮题目
+        </PixelText>
+        <PixelText variant="bodyCn" tone="primary" style={styles.topicText}>
+          {room.topic}
+        </PixelText>
+      </PixelPanel>
 
-      <Text style={styles.sectionTitle}>
+      <PixelText variant="titleCn" tone="primary">
         {phase === 'flipping' ? '正在按顺序翻牌…' : '验证完成'}
-      </Text>
-      <Text style={styles.sectionHint}>
+      </PixelText>
+      <PixelText variant="captionCn" tone="muted" style={styles.sectionHint}>
         {phase === 'flipping'
           ? '从左到右依次翻开，数字必须严格递增'
           : success
             ? '所有数字按从小到大排列'
             : '出现逆序，有牌已裂开'}
-      </Text>
+      </PixelText>
 
       <ScrollView
         horizontal
@@ -144,37 +147,43 @@ export function ResultScreen({
           ]}
         >
           <Text style={styles.resultEmoji}>{success ? '🎉' : '💔'}</Text>
-          <Text
-            style={[
-              styles.resultTitle,
-              success ? styles.resultTitleSuccess : styles.resultTitleFail,
-            ]}
+          <PixelText
+            variant="titleLatin"
+            tone={success ? 'success' : 'fail'}
+            style={styles.resultTitle}
           >
-            {success ? 'SUCCESS - 挑战成功' : 'FAIL - 挑战失败'}
-          </Text>
+            {success ? 'SUCCESS' : 'FAIL'}
+          </PixelText>
+          <PixelText
+            variant="bodyCn"
+            tone={success ? 'success' : 'fail'}
+            style={styles.resultSubtitle}
+          >
+            {success ? '挑战成功' : '挑战失败'}
+          </PixelText>
           <Text style={styles.resultEmoji}>{success ? '🎉' : '💔'}</Text>
         </View>
       ) : (
         <View style={styles.flippingHint}>
-          <Text style={styles.flippingHintText}>
-            已翻开 {revealedCount}/{room.sortOrder.length}
-          </Text>
+          <PixelText variant="bodyLatin" tone="primary">
+            {revealedCount}/{room.sortOrder.length} REVEALED
+          </PixelText>
         </View>
       )}
 
       {phase === 'done' ? (
         <View style={styles.actions}>
-          <Pressable style={styles.playAgainBtn} onPress={onPlayAgain}>
-            <Text style={styles.playAgainText}>再来一局</Text>
-          </Pressable>
+          <NeonButton label="再来一局" variant="primary" onPress={onPlayAgain} />
           {!isHost ? (
-            <Text style={styles.waitHostHint}>
+            <PixelText variant="captionCn" tone="muted" style={styles.waitHostHint}>
               点击后回到等待页，需房主再次开始游戏
-            </Text>
+            </PixelText>
           ) : null}
-          <Pressable style={styles.lobbyBtn} onPress={onBackToLobby}>
-            <Text style={styles.lobbyBtnText}>返回大厅</Text>
-          </Pressable>
+          <NeonButton
+            label="返回大厅"
+            variant="secondary"
+            onPress={onBackToLobby}
+          />
         </View>
       ) : null}
     </ScrollView>
@@ -183,131 +192,72 @@ export function ResultScreen({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: theme.spacing.lg - 4,
+    paddingBottom: theme.spacing.xxl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  roomId: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  backLink: {
-    fontSize: 15,
-    color: '#6366f1',
-    fontWeight: '600',
+    marginBottom: theme.spacing.md,
   },
   topicBox: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-  },
-  topicLabel: {
-    fontSize: 13,
-    color: '#9ca3af',
-    fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: theme.spacing.lg - 4,
+    borderColor: theme.colors.borderDim,
   },
   topicText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1f2937',
+    marginTop: theme.spacing.sm,
     lineHeight: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
   sectionHint: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 16,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.md,
     lineHeight: 20,
   },
   cardStrip: {
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    marginBottom: 24,
+    gap: theme.spacing.sm + 4,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
   },
   flippingHint: {
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  flippingHintText: {
-    fontSize: 15,
-    color: '#6366f1',
-    fontWeight: '600',
+    marginBottom: theme.spacing.md,
   },
   resultBanner: {
-    borderRadius: 20,
-    padding: 24,
+    borderWidth: theme.borders.width,
+    borderRadius: theme.borders.radius,
+    padding: theme.spacing.lg,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.backgroundElevated,
   },
   resultSuccess: {
-    backgroundColor: '#ecfdf5',
-    borderWidth: 2,
-    borderColor: '#6ee7b7',
+    borderColor: theme.colors.success,
+    backgroundColor: 'rgba(0, 255, 255, 0.06)',
   },
   resultFail: {
-    backgroundColor: '#fef2f2',
-    borderWidth: 2,
-    borderColor: '#fca5a5',
+    borderColor: theme.colors.fail,
+    backgroundColor: 'rgba(255, 0, 85, 0.08)',
   },
   resultEmoji: {
     fontSize: 28,
-    marginVertical: 4,
+    marginVertical: theme.spacing.xs,
   },
   resultTitle: {
-    fontSize: 20,
-    fontWeight: '800',
     textAlign: 'center',
-    marginVertical: 8,
+    letterSpacing: 2,
+    marginVertical: theme.spacing.xs,
   },
-  resultTitleSuccess: {
-    color: '#047857',
-  },
-  resultTitleFail: {
-    color: '#b91c1c',
+  resultSubtitle: {
+    textAlign: 'center',
+    marginBottom: theme.spacing.xs,
   },
   actions: {
-    gap: 12,
-  },
-  playAgainBtn: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  playAgainText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
+    gap: theme.spacing.sm + 4,
   },
   waitHostHint: {
-    fontSize: 13,
-    color: '#9ca3af',
     textAlign: 'center',
     lineHeight: 18,
-  },
-  lobbyBtn: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  lobbyBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
   },
 });
