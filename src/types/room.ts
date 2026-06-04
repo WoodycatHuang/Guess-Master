@@ -16,6 +16,8 @@ export interface Room {
   roomId: string;
   status: RoomStatus;
   topic: string;
+  topicLowLabel: string;
+  topicHighLabel: string;
   hostId: string;
   players: User[];
   spectators: User[];

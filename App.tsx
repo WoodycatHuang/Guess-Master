@@ -12,6 +12,7 @@ import {
 import { PixelText, ScreenShell } from './src/components/ui';
 import { useAppFonts } from './src/hooks/useAppFonts';
 import { useRoomSync } from './src/hooks/useRoomSync';
+import { GameActionError } from './src/services/sync/RoomSyncService';
 import { GameScreen } from './src/screens/GameScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
 import { ResultScreen } from './src/screens/ResultScreen';
@@ -25,6 +26,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('lobby');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [entryMessage, setEntryMessage] = useState<string | undefined>();
+  const [lobbyNickname, setLobbyNickname] = useState('');
+  const [lobbyAvatarId, setLobbyAvatarId] = useState(1);
   const roomEverLoaded = useRef(false);
 
   const {
@@ -54,46 +57,53 @@ export default function App() {
   };
 
   const handleBackToLobby = () => {
-    leaveRoom();
+    if (self) {
+      setLobbyNickname(self.name);
+      setLobbyAvatarId(self.avatarId);
+    }
+    void leaveRoom();
     setActiveRoomId(null);
     setEntryMessage(undefined);
     setScreen('lobby');
     roomEverLoaded.current = false;
   };
 
-  const handleStartGame = () => {
-    const result = startGame();
+  const handleStartGame = async () => {
+    const result = await startGame();
     if (!result) return;
     if ('code' in result) {
       Alert.alert('无法开始', result.message);
     }
   };
 
-  const handleAddMockGuests = () => {
+  const handleAddMockGuests = async () => {
     if (!room) return;
-    const result = addMockGuests(1, room.roomId);
+    const result = await addMockGuests(1, room.roomId);
     if (!result) {
       Alert.alert('添加失败', '无法添加模拟玩家，请确认房间处于等待状态');
     }
   };
 
-  const handleMoveSort = (order: string[]) => {
-    const result = updateSortOrder(order);
-    if (result && 'code' in result) {
+  const handleMoveSort = async (
+    order: string[],
+  ): Promise<GameActionError | null> => {
+    const result = await updateSortOrder(order);
+    if (result) {
       Alert.alert('排序失败', result.message);
     }
+    return result;
   };
 
-  const handleSubmitSort = () => {
-    const result = submitSort();
+  const handleSubmitSort = async () => {
+    const result = await submitSort();
     if (!result) return;
     if ('code' in result) {
       Alert.alert('提交失败', result.message);
     }
   };
 
-  const handlePlayAgain = () => {
-    const result = playAgain();
+  const handlePlayAgain = async () => {
+    const result = await playAgain();
     if (!result) return;
     if ('code' in result) {
       Alert.alert('无法再来一局', result.message);
@@ -185,6 +195,10 @@ export default function App() {
         <StatusBar style="light" />
         {screen === 'lobby' ? (
           <LobbyScreen
+            nickname={lobbyNickname}
+            avatarId={lobbyAvatarId}
+            onNicknameChange={setLobbyNickname}
+            onAvatarIdChange={setLobbyAvatarId}
             onCreateRoom={createRoom}
             onJoinRoom={joinRoom}
             onEnterRoom={handleEnterRoom}

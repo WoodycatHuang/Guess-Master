@@ -58,16 +58,21 @@ export function useRoomSync(activeRoomId: string | null) {
     }
   }, [room, self?.id]);
 
-  const createRoom = useCallback((input: CreateRoomInput): CreateRoomResult => {
-    const result = roomSync.createRoom(input);
-    setSelf(result.self);
-    setRoom(result.room);
-    return result;
-  }, []);
+  const createRoom = useCallback(
+    async (input: CreateRoomInput): Promise<CreateRoomResult> => {
+      const result = await roomSync.createRoom(input);
+      setSelf(result.self);
+      setRoom(result.room);
+      return result;
+    },
+    [],
+  );
 
   const joinRoom = useCallback(
-    (input: JoinRoomInput): JoinRoomResult | JoinRoomError => {
-      const result = roomSync.joinRoom({
+    async (
+      input: JoinRoomInput,
+    ): Promise<JoinRoomResult | JoinRoomError> => {
+      const result = await roomSync.joinRoom({
         ...input,
         roomId: normalizeRoomId(input.roomId),
       });
@@ -79,57 +84,66 @@ export function useRoomSync(activeRoomId: string | null) {
     [],
   );
 
-  const leaveRoom = useCallback(() => {
+  const leaveRoom = useCallback(async () => {
     if (!normalizedRoomId || !self) return false;
-    const ok = roomSync.leaveRoom(normalizedRoomId, self.id);
+    const ok = await roomSync.leaveRoom(normalizedRoomId, self.id);
     if (ok) {
       setSelf(null);
     }
     return ok;
   }, [normalizedRoomId, self]);
 
-  const startGame = useCallback((): Room | GameActionError | null => {
+  const startGame = useCallback(async (): Promise<
+    Room | GameActionError | null
+  > => {
     if (!normalizedRoomId || !self) return null;
-    const result = roomSync.startGame(normalizedRoomId, self.id);
+    const result = await roomSync.startGame(normalizedRoomId, self.id);
     if (!('code' in result)) setRoom(result);
     return result;
   }, [normalizedRoomId, self]);
 
   const updateSortOrder = useCallback(
-    (order: string[]) => {
-      if (!normalizedRoomId || !self) return null;
-      const result = roomSync.updateSortOrder(
+    async (order: string[]): Promise<GameActionError | null> => {
+      if (!normalizedRoomId || !self) {
+        return { code: 'ROOM_NOT_FOUND', message: '房间状态异常' };
+      }
+      const result = await roomSync.updateSortOrder(
         normalizedRoomId,
         self.id,
         order,
       );
-      if (!('code' in result)) setRoom(result);
-      return result;
+      if ('code' in result) return result;
+      setRoom(result);
+      return null;
     },
     [normalizedRoomId, self],
   );
 
-  const submitSort = useCallback((): Room | GameActionError | null => {
+  const submitSort = useCallback(async (): Promise<
+    Room | GameActionError | null
+  > => {
     if (!normalizedRoomId || !self) return null;
-    const result = roomSync.submitSort(normalizedRoomId, self.id);
+    const result = await roomSync.submitSort(normalizedRoomId, self.id);
     if (!('code' in result)) setRoom(result);
     return result;
   }, [normalizedRoomId, self]);
 
-  const playAgain = useCallback((): Room | GameActionError | null => {
+  const playAgain = useCallback(async (): Promise<
+    Room | GameActionError | null
+  > => {
     if (!normalizedRoomId || !self) return null;
-    const result = roomSync.playAgain(normalizedRoomId, self.id);
+    const result = await roomSync.playAgain(normalizedRoomId, self.id);
     if (!('code' in result)) setRoom(result);
     return result;
   }, [normalizedRoomId, self]);
 
   const addMockGuests = useCallback(
-    (count: number, roomIdOverride?: string) => {
+    async (count: number, roomIdOverride?: string) => {
       const id = roomIdOverride
         ? normalizeRoomId(roomIdOverride)
         : normalizedRoomId;
       if (!id) return null;
-      const result = roomSync.addMockGuests(id, count);
+      const result = await roomSync.addMockGuests(id, count);
       if (result) {
         setRoom(result);
       }

@@ -148,6 +148,8 @@ export function evaluateSortedCards(room: Room): {
 export function resetRoomForNextRound(room: Room): void {
   room.status = 'waiting';
   room.topic = '';
+  room.topicLowLabel = '';
+  room.topicHighLabel = '';
   room.sortOrder = [];
   room.players.forEach((player) => {
     player.cardNumber = null;

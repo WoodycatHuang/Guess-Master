@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FlipRevealCard } from '../components/FlipRevealCard';
-import { NeonButton, PixelPanel, PixelText } from '../components/ui';
+import { TopicCard } from '../components/TopicCard';
+import { NeonButton, PixelText } from '../components/ui';
 import { FLIP_INTERVAL_MS } from '../constants/result';
 import {
   cardNumberAtSortIndex,
@@ -98,14 +99,12 @@ export function ResultScreen({
         </Pressable>
       </View>
 
-      <PixelPanel style={styles.topicBox}>
-        <PixelText variant="captionLatin" tone="muted">
-          TOPIC // 本轮题目
-        </PixelText>
-        <PixelText variant="bodyCn" tone="primary" style={styles.topicText}>
-          {room.topic}
-        </PixelText>
-      </PixelPanel>
+      <TopicCard
+        title={room.topic}
+        lowLabel={room.topicLowLabel}
+        highLabel={room.topicHighLabel}
+        style={styles.topicBox}
+      />
 
       <PixelText variant="titleCn" tone="primary">
         {phase === 'flipping' ? '正在按顺序翻牌…' : '验证完成'}
@@ -203,11 +202,6 @@ const styles = StyleSheet.create({
   },
   topicBox: {
     marginBottom: theme.spacing.lg - 4,
-    borderColor: theme.colors.borderDim,
-  },
-  topicText: {
-    marginTop: theme.spacing.sm,
-    lineHeight: 24,
   },
   sectionHint: {
     marginTop: theme.spacing.xs,

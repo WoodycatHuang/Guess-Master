@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { useRoomSync } from '../hooks/useRoomSync';
-import { roomSync } from '../services/sync';
 
 /**
  * M1 验收用临时调试页 — M2 正式大厅完成后可移除
@@ -25,15 +24,15 @@ export function SyncDebugScreen() {
 
   const avatar = Math.min(28, Math.max(1, parseInt(avatarId, 10) || 1));
 
-  const handleCreate = () => {
-    const { room: created } = createRoom({ name: nickname, avatarId: avatar });
+  const handleCreate = async () => {
+    const { room: created } = await createRoom({ name: nickname, avatarId: avatar });
     setActiveRoomId(created.roomId);
     setJoinRoomId(created.roomId);
     setLastMessage(`已创建房间：${created.roomId}，你是 Host`);
   };
 
-  const handleJoin = () => {
-    const result = joinRoom({
+  const handleJoin = async () => {
+    const result = await joinRoom({
       roomId: joinRoomId.trim(),
       name: nickname,
       avatarId: avatar,
@@ -52,28 +51,26 @@ export function SyncDebugScreen() {
     setLastMessage(`加入成功，身份：${role}`);
   };
 
-  const handleLeave = () => {
-    leaveRoom();
+  const handleLeave = async () => {
+    await leaveRoom();
     setActiveRoomId(null);
     setLastMessage('已离开房间');
   };
 
-  const handleAddMocks = () => {
-    const updated = addMockGuests(3);
+  const handleAddMocks = async () => {
+    const updated = await addMockGuests(3);
     if (updated) {
       setLastMessage(`已添加模拟玩家，当前 ${updated.players.length} 人`);
     }
   };
 
-  const handleFillRoom = () => {
-    addMockGuests(20);
+  const handleFillRoom = async () => {
+    await addMockGuests(20);
     setLastMessage('尝试填满房间（最多 10 玩家）');
   };
 
   const handleSetGaming = () => {
-    if (!activeRoomId) return;
-    roomSync._debugSetStatus(activeRoomId, 'gaming');
-    setLastMessage('已切换房间状态 → gaming（用于测试旁观加入）');
+    setLastMessage('请由房主在等待页「开始游戏」进入 gaming 状态');
   };
 
   const roleLabel = (role: string) => {

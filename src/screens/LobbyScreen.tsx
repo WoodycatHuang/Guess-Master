@@ -3,45 +3,59 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
-import { AvatarPicker } from '../components/AvatarPicker';
 import {
-  NeonButton,
-  PixelInput,
-  PixelText,
-} from '../components/ui';
+  LobbyArcadeButton,
+  LobbyAvatarGrid,
+  LobbyLogo,
+  LobbyMemberToggle,
+  LobbyNicknameField,
+} from '../components/lobby';
+import { PixelText } from '../components/ui';
+import { isRemoteSyncEnabled } from '../services/sync';
 import { theme } from '../theme';
 import { CreateRoomResult, JoinRoomError, JoinRoomResult } from '../types/room';
 
 interface Props {
+  nickname: string;
+  avatarId: number;
+  onNicknameChange: (name: string) => void;
+  onAvatarIdChange: (id: number) => void;
   onCreateRoom: (input: {
     name: string;
     avatarId: number;
-  }) => CreateRoomResult;
+  }) => Promise<CreateRoomResult>;
   onJoinRoom: (input: {
     roomId: string;
     name: string;
     avatarId: number;
-  }) => JoinRoomResult | JoinRoomError;
+  }) => Promise<JoinRoomResult | JoinRoomError>;
   onEnterRoom: (roomId: string, entryMessage?: string) => void;
 }
 
-export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
-  const [nickname, setNickname] = useState('');
-  const [avatarId, setAvatarId] = useState(1);
+export function LobbyScreen({
+  nickname,
+  avatarId,
+  onNicknameChange,
+  onAvatarIdChange,
+  onCreateRoom,
+  onJoinRoom,
+  onEnterRoom,
+}: Props) {
   const [roomIdInput, setRoomIdInput] = useState('');
   const [isMockMember, setIsMockMember] = useState(false);
+  const [roomFocused, setRoomFocused] = useState(false);
 
   const profile = () => ({
     name: nickname.trim(),
     avatarId,
   });
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!nickname.trim()) {
       Alert.alert('提示', '请输入昵称');
       return;
@@ -50,11 +64,16 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
       Alert.alert('需要会员', '需要会员才能创建房间');
       return;
     }
-    const result = onCreateRoom(profile());
-    onEnterRoom(result.room.roomId);
+    try {
+      const result = await onCreateRoom(profile());
+      onEnterRoom(result.room.roomId);
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : '未知错误';
+      Alert.alert('创建失败', detail);
+    }
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!nickname.trim()) {
       Alert.alert('提示', '请输入昵称');
       return;
@@ -63,15 +82,23 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
       Alert.alert('提示', '请输入房间号');
       return;
     }
-    const result = onJoinRoom({
-      ...profile(),
-      roomId: roomIdInput.trim(),
-    });
-    if ('code' in result) {
-      Alert.alert('加入失败', result.message);
-      return;
+    try {
+      const result = await onJoinRoom({
+        ...profile(),
+        roomId: roomIdInput.trim(),
+      });
+      if ('code' in result) {
+        const hint = !isRemoteSyncEnabled()
+          ? '\n\n当前为单机模式，房间只存在于创建设备。多台手机联机请先启动 sync-server。'
+          : '';
+        Alert.alert('加入失败', result.message + hint);
+        return;
+      }
+      onEnterRoom(result.room.roomId, result.message);
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : '未知错误';
+      Alert.alert('加入失败', detail);
     }
-    onEnterRoom(result.room.roomId, result.message);
   };
 
   return (
@@ -83,73 +110,59 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <PixelText variant="titleCn" tone="primary" style={styles.title}>
-          猜数大师
-        </PixelText>
-        <PixelText variant="captionLatin" tone="secondary" style={styles.subtitle}>
-          GUESS MASTER // LOBBY
-        </PixelText>
+        <View style={styles.content}>
+          <LobbyLogo />
 
-        <PixelText variant="labelCn" tone="primary" style={styles.label}>
-          你的昵称
-        </PixelText>
-        <PixelInput
-          placeholder="输入昵称（同房间可重复）"
-          value={nickname}
-          onChangeText={setNickname}
-          maxLength={12}
-        />
+          <LobbyNicknameField value={nickname} onChangeText={onNicknameChange} />
 
-        <PixelText variant="labelCn" tone="primary" style={styles.label}>
-          选择头像
-        </PixelText>
-        <AvatarPicker selectedId={avatarId} onSelect={setAvatarId} />
+          <LobbyAvatarGrid selectedId={avatarId} onSelect={onAvatarIdChange} />
 
-        <Pressable
-          style={styles.memberRow}
-          onPress={() => setIsMockMember((v) => !v)}
-        >
-          <View style={[styles.checkbox, isMockMember && styles.checkboxOn]}>
-            {isMockMember ? (
-              <PixelText variant="captionLatin" tone="onAccent">
-                X
-              </PixelText>
-            ) : null}
+          <View style={styles.actionRow}>
+            <TextInput
+              style={[
+                styles.roomInput,
+                styles.narrowCell,
+                roomFocused && styles.roomInputFocused,
+              ]}
+              placeholder="[ ROOM ID ]"
+              placeholderTextColor={theme.colors.textMuted}
+              value={roomIdInput}
+              onChangeText={setRoomIdInput}
+              onFocus={() => setRoomFocused(true)}
+              onBlur={() => setRoomFocused(false)}
+              autoCapitalize="characters"
+              maxLength={6}
+            />
+            <LobbyArcadeButton
+              label="加入房间"
+              variant="secondary"
+              fullWidth={false}
+              onPress={handleJoin}
+              style={styles.wideButton}
+            />
           </View>
-          <PixelText variant="bodyCn" tone="secondary">
-            是否为模拟会员
-          </PixelText>
-        </Pressable>
-        <PixelText variant="captionCn" tone="muted" style={styles.memberHint}>
-          创建房间需要勾选模拟会员
-        </PixelText>
 
-        <View style={styles.section}>
-          <PixelText variant="labelCn" tone="primary" style={styles.label}>
-            加入房间
+          <View style={[styles.actionRow, styles.createRow]}>
+            <LobbyMemberToggle
+              checked={isMockMember}
+              onToggle={() => setIsMockMember((v) => !v)}
+              compact
+            />
+            <LobbyArcadeButton
+              label="创建房间"
+              subtitle="[ PRESS START ]"
+              variant="primary"
+              fullWidth={false}
+              flat
+              onPress={handleCreate}
+              style={styles.wideButton}
+            />
+          </View>
+
+          <PixelText variant="captionCn" tone="muted" style={styles.hint}>
+            创建房间需勾选模拟会员
           </PixelText>
-          <PixelInput
-            placeholder="输入 6 位房间号"
-            value={roomIdInput}
-            onChangeText={setRoomIdInput}
-            autoCapitalize="characters"
-            maxLength={6}
-            style={styles.roomInput}
-          />
-          <NeonButton
-            label="加入房间"
-            variant="secondary"
-            onPress={handleJoin}
-            style={styles.joinBtn}
-          />
         </View>
-
-        <NeonButton
-          label="创建房间"
-          variant="primary"
-          onPress={handleCreate}
-          style={styles.createBtn}
-        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -158,57 +171,55 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: {
-    padding: theme.spacing.lg,
+    flexGrow: 1,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xxl,
+    alignItems: 'center',
   },
-  title: {
-    letterSpacing: 1,
+  content: {
+    width: '100%',
+    maxWidth: 400,
   },
-  subtitle: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
-    letterSpacing: 0.5,
-  },
-  label: {
-    marginBottom: theme.spacing.sm,
-    marginTop: theme.spacing.md,
-  },
-  memberRow: {
+  actionRow: {
     flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm + 4,
+  },
+  narrowCell: {
+    flex: 1,
+  },
+  wideButton: {
+    flex: 1.3,
+  },
+  createRow: {
     alignItems: 'center',
-    marginTop: theme.spacing.lg,
-    gap: theme.spacing.sm + 2,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: theme.borders.radius,
-    borderWidth: theme.borders.width,
-    borderColor: theme.colors.borderDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.backgroundInput,
-  },
-  checkboxOn: {
-    backgroundColor: theme.colors.neonGreen,
-    borderColor: theme.colors.neonGreen,
-  },
-  memberHint: {
-    marginTop: theme.spacing.xs,
-    marginLeft: 34,
-  },
-  section: {
-    marginTop: theme.spacing.sm,
   },
   roomInput: {
+    backgroundColor: theme.colors.backgroundInput,
+    borderWidth: theme.borders.width,
+    borderColor: theme.colors.neonGreen,
+    borderRadius: theme.borders.radius,
+    paddingHorizontal: theme.spacing.sm + 4,
+    paddingVertical: theme.spacing.sm + 4,
     fontFamily: theme.fontFamily.latin,
-    fontSize: theme.fontSize.md,
-    letterSpacing: 2,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textPrimary,
+    letterSpacing: 1,
+    minHeight: 52,
+    textAlign: 'center',
   },
-  joinBtn: {
-    marginTop: theme.spacing.sm + 4,
+  roomInputFocused: {
+    borderWidth: 3,
+    borderColor: theme.colors.success,
+    shadowColor: theme.colors.success,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
   },
-  createBtn: {
-    marginTop: theme.spacing.lg,
+  hint: {
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
 });

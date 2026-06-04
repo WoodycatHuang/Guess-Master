@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 import { getAvatarEmoji } from '../constants/avatars';
+import { GameActionError } from '../services/sync/RoomSyncService';
 import { NeonButton, PixelPanel, PixelText } from './ui';
 import { theme } from '../theme';
 import { Room } from '../types/room';
@@ -16,8 +17,13 @@ interface SortItem {
 interface Props {
   room: Room;
   sortOrder: string[];
-  onMoveSort: (order: string[]) => void;
+  onMoveSort: (order: string[]) => Promise<GameActionError | null>;
   onSubmitSort: () => void;
+  onDragActiveChange?: (active: boolean) => void;
+}
+
+function toItems(order: string[]): SortItem[] {
+  return order.map((id) => ({ key: id }));
 }
 
 export function HostSortPanel({
@@ -25,21 +31,40 @@ export function HostSortPanel({
   sortOrder,
   onMoveSort,
   onSubmitSort,
+  onDragActiveChange,
 }: Props) {
-  const data = useMemo(
-    () => sortOrder.map((id) => ({ key: id })),
-    [sortOrder],
-  );
+  /** 只在开局/玩家变更时从服务端初始化，拖动期间不再被 props 覆盖 */
+  const playersKey = room.players.map((p) => p.id).join('|');
+
+  const [items, setItems] = useState<SortItem[]>(() => toItems(sortOrder));
+
+  useEffect(() => {
+    setItems(toItems(sortOrder));
+  }, [playersKey]);
+
+  const handleDragBegin = () => {
+    onDragActiveChange?.(true);
+  };
+
+  const handleDragEnd = async ({ data: next }: { data: SortItem[] }) => {
+    onDragActiveChange?.(false);
+
+    const order = next.map((i) => i.key);
+    setItems(next);
+
+    const result = await onMoveSort(order);
+    if (result) {
+      setItems(toItems(sortOrder));
+    }
+  };
 
   const renderItem = ({
     item,
     drag,
     isActive,
-    getIndex,
   }: RenderItemParams<SortItem>) => {
     const user = room.players.find((u) => u.id === item.key);
     if (!user) return null;
-    const index = getIndex() ?? 0;
 
     return (
       <ScaleDecorator>
@@ -49,9 +74,6 @@ export function HostSortPanel({
           disabled={isActive}
           style={[styles.sortCell, isActive && styles.sortCellActive]}
         >
-          <PixelText variant="captionLatin" tone="muted">
-            {index + 1}
-          </PixelText>
           <Text style={styles.avatar}>{getAvatarEmoji(user.avatarId)}</Text>
           <PixelText
             variant="captionCn"
@@ -60,9 +82,6 @@ export function HostSortPanel({
             style={styles.name}
           >
             {user.name}
-          </PixelText>
-          <PixelText variant="captionLatin" tone="muted" style={styles.dragHint}>
-            HOLD
           </PixelText>
         </Pressable>
       </ScaleDecorator>
@@ -75,19 +94,24 @@ export function HostSortPanel({
         排序区
       </PixelText>
       <PixelText variant="captionCn" tone="muted" style={styles.hint}>
-        按数字从小到大排列。长按头像拖动到目标位置。
+        按手牌数字从小到大，从左到右排列。长按头像拖动。
       </PixelText>
 
       <DraggableFlatList
         horizontal
-        data={data}
+        data={items}
+        extraData={items.map((i) => i.key).join('|')}
         keyExtractor={(item) => item.key}
-        onDragEnd={({ data: next }) => onMoveSort(next.map((i) => i.key))}
+        onDragBegin={handleDragBegin}
+        onDragEnd={handleDragEnd}
         renderItem={renderItem}
         containerStyle={styles.listContainer}
         contentContainerStyle={styles.strip}
         showsHorizontalScrollIndicator={false}
-        activationDistance={8}
+        activationDistance={10}
+        autoscrollThreshold={80}
+        dragItemOverflow
+        removeClippedSubviews={false}
       />
 
       <NeonButton
@@ -138,10 +162,6 @@ const styles = StyleSheet.create({
   name: {
     maxWidth: 80,
     textAlign: 'center',
-  },
-  dragHint: {
-    marginTop: theme.spacing.xs + 2,
-    letterSpacing: 0.5,
   },
   submitBtn: {
     marginTop: theme.spacing.sm + 4,

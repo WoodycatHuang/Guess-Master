@@ -2,4 +2,4 @@
 export const MAX_PLAYERS = 10;
 
 /** 可选默认头像数量 */
-export const AVATAR_COUNT = 28;
+export const AVATAR_COUNT = 25;
