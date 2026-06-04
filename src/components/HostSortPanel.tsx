@@ -5,6 +5,8 @@ import DraggableFlatList, {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 import { getAvatarEmoji } from '../constants/avatars';
+import { NeonButton, PixelPanel, PixelText } from './ui';
+import { theme } from '../theme';
 import { Room } from '../types/room';
 
 interface SortItem {
@@ -47,23 +49,34 @@ export function HostSortPanel({
           disabled={isActive}
           style={[styles.sortCell, isActive && styles.sortCellActive]}
         >
-          <Text style={styles.index}>{index + 1}</Text>
+          <PixelText variant="captionLatin" tone="muted">
+            {index + 1}
+          </PixelText>
           <Text style={styles.avatar}>{getAvatarEmoji(user.avatarId)}</Text>
-          <Text style={styles.name} numberOfLines={1}>
+          <PixelText
+            variant="captionCn"
+            tone="secondary"
+            numberOfLines={1}
+            style={styles.name}
+          >
             {user.name}
-          </Text>
-          <Text style={styles.dragHint}>长按拖动</Text>
+          </PixelText>
+          <PixelText variant="captionLatin" tone="muted" style={styles.dragHint}>
+            HOLD
+          </PixelText>
         </Pressable>
       </ScaleDecorator>
     );
   };
 
   return (
-    <View style={styles.panel}>
-      <Text style={styles.title}>排序区</Text>
-      <Text style={styles.hint}>
+    <PixelPanel style={styles.panel}>
+      <PixelText variant="titleCn" tone="primary">
+        排序区
+      </PixelText>
+      <PixelText variant="captionCn" tone="muted" style={styles.hint}>
         按数字从小到大排列。长按头像拖动到目标位置。
-      </Text>
+      </PixelText>
 
       <DraggableFlatList
         horizontal
@@ -77,88 +90,60 @@ export function HostSortPanel({
         activationDistance={8}
       />
 
-      <Pressable style={styles.submitBtn} onPress={onSubmitSort}>
-        <Text style={styles.submitText}>排序完成，准备开车</Text>
-      </Pressable>
-    </View>
+      <NeonButton
+        label="排序完成，准备开车"
+        variant="primary"
+        onPress={onSubmitSort}
+        style={styles.submitBtn}
+      />
+    </PixelPanel>
   );
 }
 
 const styles = StyleSheet.create({
   panel: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
+    marginBottom: theme.spacing.md,
+    borderColor: theme.colors.borderDim,
   },
   hint: {
-    fontSize: 13,
-    color: '#9ca3af',
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.sm + 4,
     lineHeight: 18,
-    marginBottom: 12,
   },
   listContainer: {
     flexGrow: 0,
   },
   strip: {
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    gap: theme.spacing.sm + 4,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
   },
   sortCell: {
     width: 88,
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    backgroundColor: theme.colors.backgroundInput,
+    borderRadius: theme.borders.radius,
+    padding: theme.spacing.sm + 2,
+    borderWidth: theme.borders.width,
+    borderColor: theme.colors.borderMuted,
   },
   sortCellActive: {
-    backgroundColor: '#eef2ff',
-    borderColor: '#6366f1',
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  index: {
-    fontSize: 11,
-    color: '#9ca3af',
-    fontWeight: '600',
+    backgroundColor: theme.colors.overlay,
+    borderColor: theme.colors.neonGreen,
   },
   avatar: {
-    fontSize: 36,
-    marginVertical: 4,
+    fontSize: 32,
+    marginVertical: theme.spacing.xs,
   },
   name: {
-    fontSize: 11,
-    color: '#4b5563',
     maxWidth: 80,
     textAlign: 'center',
   },
   dragHint: {
-    fontSize: 10,
-    color: '#a5b4fc',
-    marginTop: 6,
+    marginTop: theme.spacing.xs + 2,
+    letterSpacing: 0.5,
   },
   submitBtn: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  submitText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
+    marginTop: theme.spacing.sm + 4,
   },
 });

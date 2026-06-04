@@ -1,5 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { HostSortPanel } from '../components/HostSortPanel';
+import { PixelPanel, PixelText } from '../components/ui';
+import { theme } from '../theme';
 import { Room, User } from '../types/room';
 
 interface Props {
@@ -35,22 +37,36 @@ export function GameScreen({
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
-        <Text style={styles.roomId}>房间 {room.roomId}</Text>
+        <PixelText variant="bodyLatin" tone="secondary">
+          ROOM {room.roomId}
+        </PixelText>
         <Pressable onPress={onBackToLobby} hitSlop={8}>
-          <Text style={styles.back}>退回大厅</Text>
+          <PixelText variant="labelCn" tone="primary">
+            退回大厅
+          </PixelText>
         </Pressable>
       </View>
 
-      <View style={styles.topicBox}>
-        <Text style={styles.topicLabel}>本轮题目</Text>
-        <Text style={styles.topicText}>{room.topic}</Text>
-      </View>
+      <PixelPanel style={styles.topicBox}>
+        <PixelText variant="captionLatin" tone="muted">
+          TOPIC // 本轮题目
+        </PixelText>
+        <PixelText variant="bodyCn" tone="primary" style={styles.topicText}>
+          {room.topic}
+        </PixelText>
+      </PixelPanel>
 
       {isPlayer && myCard !== null && (
         <View style={styles.cardBox}>
-          <Text style={styles.cardLabel}>你的数字牌</Text>
-          <Text style={styles.cardNumber}>{myCard}</Text>
-          <Text style={styles.cardHint}>只有你能看到这张牌</Text>
+          <PixelText variant="captionLatin" tone="secondary">
+            YOUR CARD
+          </PixelText>
+          <PixelText variant="displayLatin" tone="primary" style={styles.cardNumber}>
+            {myCard}
+          </PixelText>
+          <PixelText variant="captionCn" tone="muted" style={styles.cardHint}>
+            只有你能看到这张牌
+          </PixelText>
         </View>
       )}
 
@@ -64,15 +80,19 @@ export function GameScreen({
       )}
 
       {!isHost && isPlayer && (
-        <View style={styles.waitPanel}>
-          <Text style={styles.waitText}>房主正在努力排序中…</Text>
-        </View>
+        <PixelPanel style={styles.waitPanel}>
+          <PixelText variant="bodyCn" tone="secondary" style={styles.waitText}>
+            房主正在努力排序中…
+          </PixelText>
+        </PixelPanel>
       )}
 
       {isSpectator && (
-        <View style={styles.waitPanel}>
-          <Text style={styles.waitText}>游戏进行中，请观战</Text>
-        </View>
+        <PixelPanel style={styles.waitPanel}>
+          <PixelText variant="bodyCn" tone="secondary" style={styles.waitText}>
+            游戏进行中，请观战
+          </PixelText>
+        </PixelPanel>
       )}
     </ScrollView>
   );
@@ -80,76 +100,47 @@ export function GameScreen({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: theme.spacing.lg - 4,
+    paddingBottom: theme.spacing.xxl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  roomId: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  back: {
-    fontSize: 15,
-    color: '#6366f1',
-    fontWeight: '600',
+    marginBottom: theme.spacing.md,
   },
   topicBox: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  topicLabel: {
-    fontSize: 13,
-    color: '#9ca3af',
-    fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: theme.spacing.lg - 4,
+    borderColor: theme.colors.borderDim,
   },
   topicText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    lineHeight: 26,
+    marginTop: theme.spacing.sm,
+    lineHeight: 24,
   },
   cardBox: {
-    backgroundColor: '#eef2ff',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: theme.colors.backgroundElevated,
+    borderWidth: theme.borders.width,
+    borderColor: theme.colors.neonGreen,
+    borderRadius: theme.borders.radius,
+    padding: theme.spacing.lg,
     alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: '#c7d2fe',
-  },
-  cardLabel: {
-    fontSize: 14,
-    color: '#6366f1',
-    fontWeight: '600',
+    marginBottom: theme.spacing.lg,
   },
   cardNumber: {
-    fontSize: 72,
-    fontWeight: '800',
-    color: '#4f46e5',
-    marginVertical: 8,
+    fontSize: 56,
+    lineHeight: 64,
+    marginVertical: theme.spacing.sm,
+    letterSpacing: 2,
   },
   cardHint: {
-    fontSize: 12,
-    color: '#818cf8',
+    textAlign: 'center',
   },
   waitPanel: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 28,
     alignItems: 'center',
+    borderColor: theme.colors.borderDim,
+    paddingVertical: theme.spacing.lg + 4,
   },
   waitText: {
-    fontSize: 17,
-    color: '#6b7280',
-    fontWeight: '500',
+    textAlign: 'center',
   },
 });
