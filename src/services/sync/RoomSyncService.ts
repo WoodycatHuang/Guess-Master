@@ -38,6 +38,7 @@ export interface RoomSyncService {
     order: string[],
   ): Room | GameActionError;
   submitSort(roomId: string, userId: string): Room | GameActionError;
+  playAgain(roomId: string, userId: string): Room | GameActionError;
 
   /** 测试用：批量添加模拟 Guest */
   addMockGuests(roomId: string, count: number): Room | null;

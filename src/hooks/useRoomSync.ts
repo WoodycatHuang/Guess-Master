@@ -116,6 +116,13 @@ export function useRoomSync(activeRoomId: string | null) {
     return result;
   }, [normalizedRoomId, self]);
 
+  const playAgain = useCallback((): Room | GameActionError | null => {
+    if (!normalizedRoomId || !self) return null;
+    const result = roomSync.playAgain(normalizedRoomId, self.id);
+    if (!('code' in result)) setRoom(result);
+    return result;
+  }, [normalizedRoomId, self]);
+
   const addMockGuests = useCallback(
     (count: number, roomIdOverride?: string) => {
       const id = roomIdOverride
@@ -141,6 +148,7 @@ export function useRoomSync(activeRoomId: string | null) {
     startGame,
     updateSortOrder,
     submitSort,
+    playAgain,
     addMockGuests,
   };
 }

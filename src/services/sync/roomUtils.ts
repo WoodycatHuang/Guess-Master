@@ -120,3 +120,37 @@ export function validateSortOrder(room: Room, order: string[]): boolean {
   }
   return true;
 }
+
+export function cardNumberAtSortIndex(room: Room, index: number): number | null {
+  const userId = room.sortOrder[index];
+  if (!userId) return null;
+  return room.players.find((u) => u.id === userId)?.cardNumber ?? null;
+}
+
+/** 按 Host 排序从左到右检查是否严格递增（当前 > 前一个） */
+export function evaluateSortedCards(room: Room): {
+  success: boolean;
+  crackIndex: number | null;
+} {
+  let prev: number | null = null;
+  for (let i = 0; i < room.sortOrder.length; i++) {
+    const num = cardNumberAtSortIndex(room, i);
+    if (num == null) continue;
+    if (prev !== null && num <= prev) {
+      return { success: false, crackIndex: i };
+    }
+    prev = num;
+  }
+  return { success: true, crackIndex: null };
+}
+
+/** 「再来一局」：回到 waiting，清空本局题目与手牌 */
+export function resetRoomForNextRound(room: Room): void {
+  room.status = 'waiting';
+  room.topic = '';
+  room.sortOrder = [];
+  room.players.forEach((player) => {
+    player.cardNumber = null;
+    player.positionIndex = null;
+  });
+}

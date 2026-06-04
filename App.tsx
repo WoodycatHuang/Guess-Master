@@ -13,7 +13,7 @@ import {
 import { useRoomSync } from './src/hooks/useRoomSync';
 import { GameScreen } from './src/screens/GameScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
-import { ResultPlaceholderScreen } from './src/screens/ResultPlaceholderScreen';
+import { ResultScreen } from './src/screens/ResultScreen';
 import { RoomWaitingScreen } from './src/screens/RoomWaitingScreen';
 
 type Screen = 'lobby' | 'room';
@@ -33,6 +33,7 @@ export default function App() {
     startGame,
     updateSortOrder,
     submitSort,
+    playAgain,
     addMockGuests,
   } = useRoomSync(activeRoomId);
 
@@ -88,6 +89,14 @@ export default function App() {
     }
   };
 
+  const handlePlayAgain = () => {
+    const result = playAgain();
+    if (!result) return;
+    if ('code' in result) {
+      Alert.alert('无法再来一局', result.message);
+    }
+  };
+
   const renderRoom = () => {
     if (!room || !self) {
       if (roomEverLoaded.current) {
@@ -135,9 +144,10 @@ export default function App() {
     }
 
     return (
-      <ResultPlaceholderScreen
+      <ResultScreen
         room={room}
         self={self}
+        onPlayAgain={handlePlayAgain}
         onBackToLobby={handleBackToLobby}
       />
     );

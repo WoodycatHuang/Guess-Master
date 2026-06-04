@@ -21,7 +21,9 @@ import {
   isGameInProgress,
   isRoomFull,
   promoteNextHost,
+  resetRoomForNextRound,
   validateSortOrder,
+  findUserInRoom,
 } from './roomUtils';
 import {
   GameActionError,
@@ -247,6 +249,24 @@ class LocalMockSyncService implements RoomSyncService {
     }
 
     room.status = 'verifying';
+    this.emitUpdate(id);
+    return cloneRoom(room);
+  }
+
+  playAgain(roomId: string, userId: string): Room | GameActionError {
+    const id = normalizeRoomId(roomId);
+    const room = this.rooms.get(id);
+    if (!room) {
+      return { code: 'ROOM_NOT_FOUND', message: '房间不存在' };
+    }
+    if (room.status !== 'verifying') {
+      return { code: 'INVALID_STATUS', message: '当前无法再来一局' };
+    }
+    if (!findUserInRoom(room, userId)) {
+      return { code: 'ROOM_NOT_FOUND', message: '你不在该房间中' };
+    }
+
+    resetRoomForNextRound(room);
     this.emitUpdate(id);
     return cloneRoom(room);
   }
