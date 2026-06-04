@@ -7,18 +7,27 @@ import {
   JoinRoomResult,
   Room,
 } from '../../types/room';
+import { pickRandomTopic } from '../../constants/topics';
 import { normalizeRoomId } from './roomKeys';
 import { getListenersMap, getRoomsMap } from './roomStore';
 import {
+  applySortOrder,
   cloneRoom,
   createUser,
+  dealCardsToPlayers,
+  defaultSortOrder,
   generateRoomId,
   guestsByJoinOrder,
   isGameInProgress,
   isRoomFull,
   promoteNextHost,
+  validateSortOrder,
 } from './roomUtils';
-import { RoomListener, RoomSyncService, StartGameError } from './RoomSyncService';
+import {
+  GameActionError,
+  RoomListener,
+  RoomSyncService,
+} from './RoomSyncService';
 
 class LocalMockSyncService implements RoomSyncService {
   private get rooms() {
@@ -167,7 +176,7 @@ class LocalMockSyncService implements RoomSyncService {
     return cloneRoom(room);
   }
 
-  startGame(roomId: string, userId: string): Room | StartGameError {
+  startGame(roomId: string, userId: string): Room | GameActionError {
     const id = normalizeRoomId(roomId);
     const room = this.rooms.get(id);
     if (!room) {
@@ -186,7 +195,58 @@ class LocalMockSyncService implements RoomSyncService {
       };
     }
 
+    room.topic = pickRandomTopic();
+    dealCardsToPlayers(room.players);
+    room.sortOrder = defaultSortOrder(room);
+    applySortOrder(room);
     room.status = 'gaming';
+    this.emitUpdate(id);
+    return cloneRoom(room);
+  }
+
+  updateSortOrder(
+    roomId: string,
+    userId: string,
+    order: string[],
+  ): Room | GameActionError {
+    const id = normalizeRoomId(roomId);
+    const room = this.rooms.get(id);
+    if (!room) {
+      return { code: 'ROOM_NOT_FOUND', message: '房间不存在' };
+    }
+    if (room.status !== 'gaming') {
+      return { code: 'INVALID_STATUS', message: '当前无法调整排序' };
+    }
+    if (room.hostId !== userId) {
+      return { code: 'NOT_HOST', message: '只有房主可以排序' };
+    }
+    if (!validateSortOrder(room, order)) {
+      return { code: 'INVALID_SORT', message: '排序必须包含所有玩家' };
+    }
+
+    room.sortOrder = [...order];
+    applySortOrder(room);
+    this.emitUpdate(id);
+    return cloneRoom(room);
+  }
+
+  submitSort(roomId: string, userId: string): Room | GameActionError {
+    const id = normalizeRoomId(roomId);
+    const room = this.rooms.get(id);
+    if (!room) {
+      return { code: 'ROOM_NOT_FOUND', message: '房间不存在' };
+    }
+    if (room.status !== 'gaming') {
+      return { code: 'INVALID_STATUS', message: '当前无法提交排序' };
+    }
+    if (room.hostId !== userId) {
+      return { code: 'NOT_HOST', message: '只有房主可以提交' };
+    }
+    if (!validateSortOrder(room, room.sortOrder)) {
+      return { code: 'INVALID_SORT', message: '排序必须包含所有玩家' };
+    }
+
+    room.status = 'verifying';
     this.emitUpdate(id);
     return cloneRoom(room);
   }

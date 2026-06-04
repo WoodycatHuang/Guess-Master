@@ -85,3 +85,38 @@ export function defaultSortOrder(room: Room): string[] {
     .sort((a, b) => a.joinedAt - b.joinedAt)
     .map((u) => u.id);
 }
+
+function shuffle<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/** 为每位玩家发 1–100 互不重复的数字牌 */
+export function dealCardsToPlayers(players: User[]): void {
+  const pool = shuffle(Array.from({ length: 100 }, (_, i) => i + 1));
+  players.forEach((player, index) => {
+    player.cardNumber = pool[index];
+  });
+}
+
+export function applySortOrder(room: Room): void {
+  room.sortOrder.forEach((userId, index) => {
+    const player = room.players.find((u) => u.id === userId);
+    if (player) player.positionIndex = index;
+  });
+}
+
+export function validateSortOrder(room: Room, order: string[]): boolean {
+  if (order.length !== room.players.length) return false;
+  const playerIds = new Set(room.players.map((u) => u.id));
+  const seen = new Set<string>();
+  for (const id of order) {
+    if (!playerIds.has(id) || seen.has(id)) return false;
+    seen.add(id);
+  }
+  return true;
+}

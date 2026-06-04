@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   ActivityIndicator,
   Alert,
@@ -10,8 +11,9 @@ import {
   View,
 } from 'react-native';
 import { useRoomSync } from './src/hooks/useRoomSync';
-import { GamingPlaceholderScreen } from './src/screens/GamingPlaceholderScreen';
+import { GameScreen } from './src/screens/GameScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
+import { ResultPlaceholderScreen } from './src/screens/ResultPlaceholderScreen';
 import { RoomWaitingScreen } from './src/screens/RoomWaitingScreen';
 
 type Screen = 'lobby' | 'room';
@@ -29,6 +31,8 @@ export default function App() {
     joinRoom,
     leaveRoom,
     startGame,
+    updateSortOrder,
+    submitSort,
     addMockGuests,
   } = useRoomSync(activeRoomId);
 
@@ -69,6 +73,21 @@ export default function App() {
     }
   };
 
+  const handleMoveSort = (order: string[]) => {
+    const result = updateSortOrder(order);
+    if (result && 'code' in result) {
+      Alert.alert('排序失败', result.message);
+    }
+  };
+
+  const handleSubmitSort = () => {
+    const result = submitSort();
+    if (!result) return;
+    if ('code' in result) {
+      Alert.alert('提交失败', result.message);
+    }
+  };
+
   const renderRoom = () => {
     if (!room || !self) {
       if (roomEverLoaded.current) {
@@ -103,8 +122,20 @@ export default function App() {
       );
     }
 
+    if (room.status === 'gaming') {
+      return (
+        <GameScreen
+          room={room}
+          self={self}
+          onMoveSort={handleMoveSort}
+          onSubmitSort={handleSubmitSort}
+          onBackToLobby={handleBackToLobby}
+        />
+      );
+    }
+
     return (
-      <GamingPlaceholderScreen
+      <ResultPlaceholderScreen
         room={room}
         self={self}
         onBackToLobby={handleBackToLobby}
@@ -113,22 +144,27 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      {screen === 'lobby' ? (
-        <LobbyScreen
-          onCreateRoom={createRoom}
-          onJoinRoom={joinRoom}
-          onEnterRoom={handleEnterRoom}
-        />
-      ) : (
-        renderRoom()
-      )}
-    </SafeAreaView>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style="dark" />
+        {screen === 'lobby' ? (
+          <LobbyScreen
+            onCreateRoom={createRoom}
+            onJoinRoom={joinRoom}
+            onEnterRoom={handleEnterRoom}
+          />
+        ) : (
+          renderRoom()
+        )}
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   safe: {
     flex: 1,
     backgroundColor: '#f5f3ff',

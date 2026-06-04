@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { roomSync } from '../services/sync';
 import { normalizeRoomId } from '../services/sync/roomKeys';
-import { StartGameError } from '../services/sync/RoomSyncService';
+import { GameActionError } from '../services/sync/RoomSyncService';
 import {
   CreateRoomInput,
   CreateRoomResult,
@@ -88,9 +88,32 @@ export function useRoomSync(activeRoomId: string | null) {
     return ok;
   }, [normalizedRoomId, self]);
 
-  const startGame = useCallback((): Room | StartGameError | null => {
+  const startGame = useCallback((): Room | GameActionError | null => {
     if (!normalizedRoomId || !self) return null;
-    return roomSync.startGame(normalizedRoomId, self.id);
+    const result = roomSync.startGame(normalizedRoomId, self.id);
+    if (!('code' in result)) setRoom(result);
+    return result;
+  }, [normalizedRoomId, self]);
+
+  const updateSortOrder = useCallback(
+    (order: string[]) => {
+      if (!normalizedRoomId || !self) return null;
+      const result = roomSync.updateSortOrder(
+        normalizedRoomId,
+        self.id,
+        order,
+      );
+      if (!('code' in result)) setRoom(result);
+      return result;
+    },
+    [normalizedRoomId, self],
+  );
+
+  const submitSort = useCallback((): Room | GameActionError | null => {
+    if (!normalizedRoomId || !self) return null;
+    const result = roomSync.submitSort(normalizedRoomId, self.id);
+    if (!('code' in result)) setRoom(result);
+    return result;
   }, [normalizedRoomId, self]);
 
   const addMockGuests = useCallback(
@@ -116,6 +139,8 @@ export function useRoomSync(activeRoomId: string | null) {
     joinRoom,
     leaveRoom,
     startGame,
+    updateSortOrder,
+    submitSort,
     addMockGuests,
   };
 }
