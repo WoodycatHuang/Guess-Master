@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AVATAR_EMOJIS } from '../constants/avatars';
+import { theme } from '../theme';
 
 interface Props {
   selectedId: number;
@@ -30,22 +31,22 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: theme.spacing.sm + 2,
     justifyContent: 'center',
   },
   item: {
     width: 52,
     height: 52,
-    borderRadius: 26,
-    backgroundColor: '#fff',
+    borderRadius: theme.borders.radius,
+    backgroundColor: theme.colors.backgroundElevated,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: theme.borders.width,
+    borderColor: theme.colors.borderMuted,
   },
   itemSelected: {
-    borderColor: '#4f46e5',
-    backgroundColor: '#eef2ff',
+    borderColor: theme.colors.neonGreen,
+    backgroundColor: theme.colors.overlay,
   },
   emoji: {
     fontSize: 28,

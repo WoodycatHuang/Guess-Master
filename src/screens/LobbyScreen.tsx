@@ -6,11 +6,15 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import { AvatarPicker } from '../components/AvatarPicker';
+import {
+  NeonButton,
+  PixelInput,
+  PixelText,
+} from '../components/ui';
+import { theme } from '../theme';
 import { CreateRoomResult, JoinRoomError, JoinRoomResult } from '../types/room';
 
 interface Props {
@@ -79,20 +83,26 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>猜数大师</Text>
-        <Text style={styles.subtitle}>聚会联机 · 大厅</Text>
+        <PixelText variant="titleCn" tone="primary" style={styles.title}>
+          猜数大师
+        </PixelText>
+        <PixelText variant="captionLatin" tone="secondary" style={styles.subtitle}>
+          GUESS MASTER // LOBBY
+        </PixelText>
 
-        <Text style={styles.label}>你的昵称</Text>
-        <TextInput
-          style={styles.input}
+        <PixelText variant="labelCn" tone="primary" style={styles.label}>
+          你的昵称
+        </PixelText>
+        <PixelInput
           placeholder="输入昵称（同房间可重复）"
-          placeholderTextColor="#9ca3af"
           value={nickname}
           onChangeText={setNickname}
           maxLength={12}
         />
 
-        <Text style={styles.label}>选择头像</Text>
+        <PixelText variant="labelCn" tone="primary" style={styles.label}>
+          选择头像
+        </PixelText>
         <AvatarPicker selectedId={avatarId} onSelect={setAvatarId} />
 
         <Pressable
@@ -100,31 +110,46 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
           onPress={() => setIsMockMember((v) => !v)}
         >
           <View style={[styles.checkbox, isMockMember && styles.checkboxOn]}>
-            {isMockMember ? <Text style={styles.checkmark}>✓</Text> : null}
+            {isMockMember ? (
+              <PixelText variant="captionLatin" tone="onAccent">
+                X
+              </PixelText>
+            ) : null}
           </View>
-          <Text style={styles.memberText}>是否为模拟会员</Text>
+          <PixelText variant="bodyCn" tone="secondary">
+            是否为模拟会员
+          </PixelText>
         </Pressable>
-        <Text style={styles.memberHint}>创建房间需要勾选模拟会员</Text>
+        <PixelText variant="captionCn" tone="muted" style={styles.memberHint}>
+          创建房间需要勾选模拟会员
+        </PixelText>
 
         <View style={styles.section}>
-          <Text style={styles.label}>加入房间</Text>
-          <TextInput
-            style={styles.input}
+          <PixelText variant="labelCn" tone="primary" style={styles.label}>
+            加入房间
+          </PixelText>
+          <PixelInput
             placeholder="输入 6 位房间号"
-            placeholderTextColor="#9ca3af"
             value={roomIdInput}
             onChangeText={setRoomIdInput}
             autoCapitalize="characters"
             maxLength={6}
+            style={styles.roomInput}
           />
-          <Pressable style={styles.btnSecondary} onPress={handleJoin}>
-            <Text style={styles.btnSecondaryText}>加入房间</Text>
-          </Pressable>
+          <NeonButton
+            label="加入房间"
+            variant="secondary"
+            onPress={handleJoin}
+            style={styles.joinBtn}
+          />
         </View>
 
-        <Pressable style={styles.btnPrimary} onPress={handleCreate}>
-          <Text style={styles.btnPrimaryText}>创建房间</Text>
-        </Pressable>
+        <NeonButton
+          label="创建房间"
+          variant="primary"
+          onPress={handleCreate}
+          style={styles.createBtn}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -133,98 +158,57 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom, onEnterRoom }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: {
-    padding: 24,
-    paddingBottom: 40,
+    padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1a1a2e',
+    letterSpacing: 1,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6b7280',
-    marginTop: 4,
-    marginBottom: 24,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+    letterSpacing: 0.5,
   },
   label: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#1f2937',
+    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.md,
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
-    gap: 10,
+    marginTop: theme.spacing.lg,
+    gap: theme.spacing.sm + 2,
   },
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#c7d2fe',
+    borderRadius: theme.borders.radius,
+    borderWidth: theme.borders.width,
+    borderColor: theme.colors.borderDim,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.backgroundInput,
   },
   checkboxOn: {
-    backgroundColor: '#4f46e5',
-    borderColor: '#4f46e5',
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  memberText: {
-    fontSize: 16,
-    color: '#374151',
-    fontWeight: '500',
+    backgroundColor: theme.colors.neonGreen,
+    borderColor: theme.colors.neonGreen,
   },
   memberHint: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 4,
+    marginTop: theme.spacing.xs,
     marginLeft: 34,
   },
   section: {
-    marginTop: 8,
+    marginTop: theme.spacing.sm,
   },
-  btnSecondary: {
-    backgroundColor: '#eef2ff',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 12,
+  roomInput: {
+    fontFamily: theme.fontFamily.latin,
+    fontSize: theme.fontSize.md,
+    letterSpacing: 2,
   },
-  btnSecondaryText: {
-    color: '#4f46e5',
-    fontSize: 17,
-    fontWeight: '700',
+  joinBtn: {
+    marginTop: theme.spacing.sm + 4,
   },
-  btnPrimary: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  btnPrimaryText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
+  createBtn: {
+    marginTop: theme.spacing.lg,
   },
 });

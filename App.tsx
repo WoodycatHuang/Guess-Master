@@ -5,20 +5,23 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { PixelText, ScreenShell } from './src/components/ui';
+import { useAppFonts } from './src/hooks/useAppFonts';
 import { useRoomSync } from './src/hooks/useRoomSync';
 import { GameScreen } from './src/screens/GameScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
 import { ResultScreen } from './src/screens/ResultScreen';
 import { RoomWaitingScreen } from './src/screens/RoomWaitingScreen';
+import { theme } from './src/theme';
 
 type Screen = 'lobby' | 'room';
 
 export default function App() {
+  const { loaded: fontsLoaded, error: fontsError } = useAppFonts();
   const [screen, setScreen] = useState<Screen>('lobby');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [entryMessage, setEntryMessage] = useState<string | undefined>();
@@ -102,10 +105,16 @@ export default function App() {
       if (roomEverLoaded.current) {
         return (
           <View style={styles.dissolved}>
-            <Text style={styles.dissolvedTitle}>房间已解散</Text>
-            <Text style={styles.dissolvedHint}>房主已离开，房间已关闭</Text>
+            <PixelText variant="titleCn" tone="fail">
+              房间已解散
+            </PixelText>
+            <PixelText variant="bodyCn" tone="secondary" style={styles.dissolvedHint}>
+              房主已离开，房间已关闭
+            </PixelText>
             <Pressable style={styles.dissolvedBtn} onPress={handleBackToLobby}>
-              <Text style={styles.dissolvedBtnText}>退回大厅</Text>
+              <PixelText variant="bodyCn" tone="onAccent">
+                退回大厅
+              </PixelText>
             </Pressable>
           </View>
         );
@@ -113,7 +122,7 @@ export default function App() {
 
       return (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#4f46e5" />
+          <ActivityIndicator size="large" color={theme.colors.neonGreen} />
         </View>
       );
     }
@@ -153,10 +162,27 @@ export default function App() {
     );
   };
 
+  if (fontsError) {
+    return (
+      <ScreenShell style={styles.center}>
+        <Text style={styles.bootText}>字体加载失败</Text>
+      </ScreenShell>
+    );
+  }
+
+  if (!fontsLoaded) {
+    return (
+      <ScreenShell style={styles.center}>
+        <ActivityIndicator size="large" color={theme.colors.neonGreen} />
+        <Text style={styles.bootText}>LOADING...</Text>
+      </ScreenShell>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaView style={styles.safe}>
-        <StatusBar style="dark" />
+      <ScreenShell>
+        <StatusBar style="light" />
         {screen === 'lobby' ? (
           <LobbyScreen
             onCreateRoom={createRoom}
@@ -166,7 +192,7 @@ export default function App() {
         ) : (
           renderRoom()
         )}
-      </SafeAreaView>
+      </ScreenShell>
     </GestureHandlerRootView>
   );
 }
@@ -174,42 +200,42 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
-  safe: {
-    flex: 1,
-    backgroundColor: '#f5f3ff',
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  loadingText: {
+    marginTop: theme.spacing.md,
+  },
+  bootText: {
+    marginTop: theme.spacing.md,
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+  },
   dissolved: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-  },
-  dissolvedTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 8,
+    padding: theme.spacing.lg,
   },
   dissolvedHint: {
-    fontSize: 15,
-    color: '#6b7280',
-    marginBottom: 24,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+    textAlign: 'center',
   },
   dissolvedBtn: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 14,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-  },
-  dissolvedBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    backgroundColor: theme.colors.neonGreen,
+    borderWidth: theme.borders.width,
+    borderColor: theme.colors.neonGreen,
+    borderRadius: theme.borders.radius,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
   },
 });
