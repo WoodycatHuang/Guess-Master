@@ -6,8 +6,9 @@ import {
   JoinRoomInput,
   JoinRoomResult,
   Room,
-  User,
 } from '../../types/room';
+import { normalizeRoomId } from './roomKeys';
+import { getListenersMap, getRoomsMap } from './roomStore';
 import {
   cloneRoom,
   createUser,
@@ -17,11 +18,16 @@ import {
   isRoomFull,
   promoteNextHost,
 } from './roomUtils';
-import { RoomListener, RoomSyncService } from './RoomSyncService';
+import { RoomListener, RoomSyncService, StartGameError } from './RoomSyncService';
 
 class LocalMockSyncService implements RoomSyncService {
-  private rooms = new Map<string, Room>();
-  private listeners = new Map<string, Set<RoomListener>>();
+  private get rooms() {
+    return getRoomsMap();
+  }
+
+  private get listeners() {
+    return getListenersMap();
+  }
 
   createRoom(input: CreateRoomInput): CreateRoomResult {
     const roomId = generateRoomId();
@@ -38,18 +44,18 @@ class LocalMockSyncService implements RoomSyncService {
     };
 
     this.rooms.set(roomId, room);
-    this.emit(roomId);
+    this.emitUpdate(roomId);
     return { room: cloneRoom(room), self: { ...host } };
   }
 
   joinRoom(input: JoinRoomInput): JoinRoomResult | JoinRoomError {
-    const room = this.rooms.get(input.roomId.toUpperCase());
+    const id = normalizeRoomId(input.roomId);
+    const room = this.rooms.get(id);
     if (!room) {
       return { code: 'ROOM_NOT_FOUND', message: '房间不存在' };
     }
 
-    const asSpectator =
-      isGameInProgress(room) || isRoomFull(room);
+    const asSpectator = isGameInProgress(room) || isRoomFull(room);
 
     const user = createUser(
       input.name,
@@ -59,7 +65,7 @@ class LocalMockSyncService implements RoomSyncService {
 
     if (asSpectator) {
       room.spectators.push(user);
-      this.emit(room.roomId);
+      this.emitUpdate(room.roomId);
 
       const message = isGameInProgress(room)
         ? '游戏进行中'
@@ -74,7 +80,7 @@ class LocalMockSyncService implements RoomSyncService {
     }
 
     room.players.push(user);
-    this.emit(room.roomId);
+    this.emitUpdate(room.roomId);
 
     return {
       room: cloneRoom(room),
@@ -84,7 +90,8 @@ class LocalMockSyncService implements RoomSyncService {
   }
 
   leaveRoom(roomId: string, userId: string): boolean {
-    const room = this.rooms.get(roomId);
+    const id = normalizeRoomId(roomId);
+    const room = this.rooms.get(id);
     if (!room) return false;
 
     const playerIdx = room.players.findIndex((u) => u.id === userId);
@@ -95,11 +102,12 @@ class LocalMockSyncService implements RoomSyncService {
       if (leaving.id === room.hostId) {
         if (guestsByJoinOrder(room).length > 0) {
           promoteNextHost(room);
-        } else {
-          this.rooms.delete(roomId);
-          this.emit(roomId, null);
+          this.emitUpdate(id);
           return true;
         }
+        this.rooms.delete(id);
+        this.emitDeleted(id);
+        return true;
       }
     } else {
       const specIdx = room.spectators.findIndex((u) => u.id === userId);
@@ -110,34 +118,38 @@ class LocalMockSyncService implements RoomSyncService {
       }
     }
 
-    this.emit(roomId);
+    this.emitUpdate(id);
     return true;
   }
 
   getRoom(roomId: string): Room | null {
-    const room = this.rooms.get(roomId);
+    const room = this.rooms.get(normalizeRoomId(roomId));
     return room ? cloneRoom(room) : null;
   }
 
   subscribe(roomId: string, listener: RoomListener): () => void {
-    if (!this.listeners.has(roomId)) {
-      this.listeners.set(roomId, new Set());
+    const id = normalizeRoomId(roomId);
+    if (!this.listeners.has(id)) {
+      this.listeners.set(id, new Set());
     }
-    this.listeners.get(roomId)!.add(listener);
+    this.listeners.get(id)!.add(listener);
 
-    listener(this.getRoom(roomId));
+    listener(this.getRoom(id));
 
     return () => {
-      this.listeners.get(roomId)?.delete(listener);
+      this.listeners.get(id)?.delete(listener);
     };
   }
 
   addMockGuests(roomId: string, count: number): Room | null {
-    const room = this.rooms.get(roomId);
+    const id = normalizeRoomId(roomId);
+    const room = this.rooms.get(id);
     if (!room || room.status !== 'waiting') return null;
 
     const slots = MAX_PLAYERS - room.players.length;
     const toAdd = Math.min(count, slots);
+    if (toAdd <= 0) return cloneRoom(room);
+
     const base = Date.now();
 
     for (let i = 0; i < toAdd; i++) {
@@ -151,23 +163,56 @@ class LocalMockSyncService implements RoomSyncService {
       );
     }
 
-    this.emit(roomId);
+    this.emitUpdate(id);
+    return cloneRoom(room);
+  }
+
+  startGame(roomId: string, userId: string): Room | StartGameError {
+    const id = normalizeRoomId(roomId);
+    const room = this.rooms.get(id);
+    if (!room) {
+      return { code: 'ROOM_NOT_FOUND', message: '房间不存在' };
+    }
+    if (room.status !== 'waiting') {
+      return { code: 'INVALID_STATUS', message: '当前状态无法开始游戏' };
+    }
+    if (room.hostId !== userId) {
+      return { code: 'NOT_HOST', message: '只有房主可以开始游戏' };
+    }
+    if (room.players.length < 2) {
+      return {
+        code: 'NOT_ENOUGH_PLAYERS',
+        message: '至少需要 2 名玩家才能开始',
+      };
+    }
+
+    room.status = 'gaming';
+    this.emitUpdate(id);
     return cloneRoom(room);
   }
 
   /** M1 调试用：手动切换房间状态，供验证旁观规则 */
   _debugSetStatus(roomId: string, status: Room['status']): Room | null {
-    const room = this.rooms.get(roomId);
+    const id = normalizeRoomId(roomId);
+    const room = this.rooms.get(id);
     if (!room) return null;
     room.status = status;
-    this.emit(roomId);
+    this.emitUpdate(id);
     return cloneRoom(room);
   }
 
-  private emit(roomId: string, room: Room | null = null): void {
-    const snapshot =
-      room === null ? null : this.getRoom(roomId);
-    this.listeners.get(roomId)?.forEach((fn) => fn(snapshot));
+  /** 房间数据更新 — 找不到房间时不广播 null，避免 UI 误判「已解散」 */
+  private emitUpdate(roomId: string): void {
+    const id = normalizeRoomId(roomId);
+    const snapshot = this.getRoom(id);
+    if (!snapshot) return;
+    this.listeners.get(id)?.forEach((fn) => fn(snapshot));
+  }
+
+  /** 房间真正删除时广播 null */
+  private emitDeleted(roomId: string): void {
+    const id = normalizeRoomId(roomId);
+    this.listeners.get(id)?.forEach((fn) => fn(null));
   }
 }
 
