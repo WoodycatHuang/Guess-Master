@@ -3,7 +3,7 @@ import 'dotenv/config';
 /** @type {import('expo/config').ExpoConfig} */
 export default {
   expo: {
-    name: '猜数大师',
+    name: '脑波专家',
     slug: 'guess-master',
     version: '1.0.0',
     orientation: 'portrait',

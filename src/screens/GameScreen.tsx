@@ -55,6 +55,12 @@ export function GameScreen({
           </Pressable>
         </View>
 
+        {isPlayer && (
+          <PixelText variant="captionCn" tone="muted" style={styles.gameHint}>
+            请尽量不要使用形容词，而是使用名词/名字来描述你的卡牌
+          </PixelText>
+        )}
+
         <TopicCard
           title={room.topic}
           lowLabel={room.topicLowLabel}
@@ -131,6 +137,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: theme.spacing.md,
+  },
+  gameHint: {
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
   },
   topicBox: {
     marginBottom: theme.spacing.lg - 4,

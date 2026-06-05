@@ -11,6 +11,7 @@ import { normalizeRoomId } from '../src/services/sync/roomKeys';
 import { Room } from '../src/types/room';
 import { GameActionError } from '../src/services/sync/RoomSyncService';
 import { JoinRoomError } from '../src/types/room';
+import { TOPIC_POOL } from '../src/constants/topics';
 
 const PORT = Number(process.env.SYNC_PORT ?? 8787);
 const engine = new RoomEngine(new Map<string, Room>());
@@ -220,6 +221,7 @@ wss.on('connection', (ws, req) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Guess Master sync server: http://0.0.0.0:${PORT}`);
+  console.log(`Topic pool loaded: ${TOPIC_POOL.length} topics`);
   console.log('Set EXPO_PUBLIC_SYNC_URL to your LAN IP, e.g.:');
   console.log(`  EXPO_PUBLIC_SYNC_URL=http://192.168.x.x:${PORT}`);
 });

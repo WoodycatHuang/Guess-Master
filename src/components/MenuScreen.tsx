@@ -15,7 +15,7 @@ export function MenuScreen({ score, gamesWon, gamesPlayed, onSelect }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>猜数大师</Text>
+      <Text style={styles.title}>脑波专家</Text>
       <Text style={styles.subtitle}>选择难度开始游戏</Text>
 
       <View style={styles.statsRow}>
