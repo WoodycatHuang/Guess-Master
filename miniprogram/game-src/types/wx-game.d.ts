@@ -2,6 +2,8 @@
 declare const wx: WechatMinigame.Wx;
 declare function requestAnimationFrame(callback: () => void): number;
 declare function cancelAnimationFrame(id: number): void;
+declare function setTimeout(callback: () => void, ms: number): number;
+declare function clearTimeout(id: number): void;
 
 declare namespace WechatMinigame {
   interface Wx {
@@ -9,6 +11,7 @@ declare namespace WechatMinigame {
     createImage(): Image;
     getSystemInfoSync(): SystemInfo;
     onTouchStart(cb: (e: TouchEvent) => void): void;
+    onTouchMove(cb: (e: TouchEvent) => void): void;
     onTouchEnd(cb: (e: TouchEvent) => void): void;
     onShow(cb: (opts?: { query?: Record<string, string> }) => void): void;
     showToast(opts: { title: string; icon?: string; duration?: number }): void;
@@ -80,15 +83,25 @@ declare namespace WechatMinigame {
 }
 
 interface CanvasRenderingContext2D {
+  globalAlpha: number;
   scale(x: number, y: number): void;
+  save(): void;
+  restore(): void;
+  translate(x: number, y: number): void;
+  rotate(angle: number): void;
   fillStyle: string;
   strokeStyle: string;
   lineWidth: number;
   font: string;
   textAlign: CanvasTextAlign;
   textBaseline: CanvasTextBaseline;
+  measureText(text: string): TextMetrics;
   fillRect(x: number, y: number, w: number, h: number): void;
   strokeRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
   drawImage(img: WechatMinigame.Image, x: number, y: number, w: number, h: number): void;
+}
+
+interface TextMetrics {
+  width: number;
 }

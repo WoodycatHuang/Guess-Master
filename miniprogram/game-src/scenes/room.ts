@@ -6,14 +6,9 @@ import { drawButton, drawLabel, drawPanel, hit, type ButtonSpec, type Rect } fro
 import { clearSession, persistSelf } from '../lib/storage';
 import { isRemoteSyncEnabled, roomSync } from '../lib/sync';
 import { goLobby } from './router';
+import { clearRoomState, getRoomState, setRoomState, type RoomSceneState } from './roomState';
 
-export interface RoomSceneState {
-  roomId: string;
-  self: User | null;
-  entryMessage?: string;
-}
-
-let state: RoomSceneState = { roomId: '', self: null };
+export type { RoomSceneState };
 let unsubscribe: (() => void) | null = null;
 let buttons: ButtonSpec[] = [];
 
@@ -26,21 +21,16 @@ export function initRoom(
     unsubscribe();
     unsubscribe = null;
   }
-  state = { roomId, self, entryMessage };
+  setRoomState({ roomId, self, entryMessage });
   persistSelf(self.id, roomId);
 
   unsubscribe = roomSync.subscribe(roomId, (room) => {
-    if (!room || !state.self) return;
+    const current = getRoomState();
+    if (!room || !current.self) return;
     const updated =
-      room.players.find((u) => u.id === state.self!.id) ??
-      room.spectators.find((u) => u.id === state.self!.id);
-    if (updated) state.self = { ...updated };
-
-    if (room.status === 'gaming') {
-      wx.showToast({ title: '游戏页开发中', icon: 'none' });
-    } else if (room.status === 'verifying') {
-      wx.showToast({ title: '结果页开发中', icon: 'none' });
-    }
+      room.players.find((u) => u.id === current.self!.id) ??
+      room.spectators.find((u) => u.id === current.self!.id);
+    if (updated) setRoomState({ ...current, self: { ...updated } });
   });
 }
 
@@ -49,14 +39,15 @@ export function teardownRoom(): void {
     unsubscribe();
     unsubscribe = null;
   }
+  clearRoomState();
 }
 
 export function renderRoom(): void {
   const { ctx, width, height } = getScreen();
   drawBackground(ctx, width, height);
 
-  const room = roomSync.getRoom(state.roomId);
-  if (!room || !state.self) {
+  const room = roomSync.getRoom(getRoomState().roomId);
+  if (!room || !getRoomState().self) {
     drawLabel(ctx, '加载房间…', width / 2, height / 2, theme.muted, fonts.body, 'center');
     return;
   }
@@ -67,16 +58,17 @@ export function renderRoom(): void {
   drawLabel(ctx, '退回大厅', width - pad, y, theme.green, fonts.small, 'right');
   y += 36;
 
-  if (state.entryMessage) {
+  if (getRoomState().entryMessage) {
     const banner: Rect = { x: pad, y, w: width - pad * 2, h: 56 };
     drawPanel(ctx, banner);
-    drawLabel(ctx, state.entryMessage, banner.x + 12, banner.y + 10, theme.fail, fonts.small);
+    drawLabel(ctx, getRoomState().entryMessage!, banner.x + 12, banner.y + 10, theme.fail, fonts.small);
     drawLabel(ctx, '你正在旁观', banner.x + 12, banner.y + 30, theme.muted, fonts.small);
     y += 68;
   }
 
-  const isHost = state.self.id === room.hostId;
-  const isSpectator = state.self.role === 'Spectator';
+  const self = getRoomState().self!;
+  const isHost = self.id === room.hostId;
+  const isSpectator = self.role === 'Spectator';
   drawLabel(
     ctx,
     isSpectator ? '观战中' : '等待开始',
@@ -106,7 +98,7 @@ export function renderRoom(): void {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(getAvatarEmoji(u.avatarId), row.x + 12, row.y + row.h / 2);
     let label = u.name;
-    if (u.id === state.self.id) label += '（你）';
+    if (u.id === self.id) label += '（你）';
     if (u.id === room.hostId) label += ' · 房主';
     drawLabel(ctx, label, row.x + 48, row.y + 16, theme.gray, fonts.body);
     y += 60;
@@ -161,7 +153,7 @@ export function renderRoom(): void {
 export async function onRoomTouch(x: number, y: number): Promise<void> {
   const { width } = getScreen();
   if (y <= 40 && x >= width - 100) {
-    await roomSync.leaveRoom(state.roomId, state.self?.id ?? '');
+    await roomSync.leaveRoom(getRoomState().roomId, getRoomState().self?.id ?? '');
     clearSession();
     teardownRoom();
     goLobby();
@@ -173,11 +165,11 @@ export async function onRoomTouch(x: number, y: number): Promise<void> {
     if (!hit(btn, x, y)) continue;
 
     if (btn.id === 'mock') {
-      await roomSync.addMockGuests(state.roomId, 2);
+      await roomSync.addMockGuests(getRoomState().roomId, 2);
       return;
     }
-    if (btn.id === 'start' && state.self) {
-      const result = await roomSync.startGame(state.roomId, state.self.id);
+    if (btn.id === 'start' && getRoomState().self) {
+      const result = await roomSync.startGame(getRoomState().roomId, getRoomState().self!.id);
       if (result && 'code' in result) {
         wx.showToast({ title: result.message, icon: 'none' });
       }
@@ -185,8 +177,8 @@ export async function onRoomTouch(x: number, y: number): Promise<void> {
     }
     if (btn.id === 'share') {
       wx.shareAppMessage({
-        title: `来一起玩脑波专家！房间号 ${state.roomId}`,
-        query: `roomId=${state.roomId}`,
+        title: `来一起玩脑波专家！房间号 ${getRoomState().roomId}`,
+        query: `roomId=${getRoomState().roomId}`,
         imageUrl: 'assets/share-500x400.png',
       });
       return;
@@ -195,13 +187,12 @@ export async function onRoomTouch(x: number, y: number): Promise<void> {
 }
 
 export function getRoomShareConfig(): WechatMinigame.ShareAppMessageOption {
+  const { roomId } = getRoomState();
   return {
-    title: `来一起玩脑波专家！房间号 ${state.roomId}`,
-    query: `roomId=${state.roomId}`,
+    title: `来一起玩脑波专家！房间号 ${roomId}`,
+    query: `roomId=${roomId}`,
     imageUrl: 'assets/share-500x400.png',
   };
 }
 
-export function getRoomState(): RoomSceneState {
-  return state;
-}
+export { getRoomState } from './roomState';
