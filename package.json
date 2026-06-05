@@ -34,6 +34,9 @@
     "sync": "bash scripts/daily-sync.sh",
     "generate-icons": "node scripts/generate-g-logo-icons.mjs",
     "generate-g-logo-compare": "node scripts/generate-g-logo-compare.mjs",
+    "miniprogram:dev": "npm run dev:game --prefix miniprogram",
+    "miniprogram:build": "npm run build:game --prefix miniprogram",
+    "miniprogram:assets": "node scripts/generate-miniprogram-assets.mjs",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"

@@ -6,7 +6,21 @@ type GuessMasterGlobal = typeof globalThis & {
   __guessMasterListeners?: Map<string, Set<RoomListener>>;
 };
 
-const globalStore = globalThis as GuessMasterGlobal;
+function getGlobalStore(): GuessMasterGlobal {
+  if (typeof globalThis !== 'undefined') {
+    return globalThis as GuessMasterGlobal;
+  }
+  if (typeof global !== 'undefined') {
+    return global as GuessMasterGlobal;
+  }
+  // 微信小程序运行时没有 globalThis，挂到 wx 上
+  if (typeof wx !== 'undefined') {
+    return wx as unknown as GuessMasterGlobal;
+  }
+  return {} as GuessMasterGlobal;
+}
+
+const globalStore = getGlobalStore();
 
 /** 内存房间表 — 挂到 globalThis，避免 Expo 热更新清空导致房间「假解散」 */
 export function getRoomsMap(): Map<string, Room> {
