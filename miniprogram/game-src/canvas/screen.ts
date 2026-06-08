@@ -1,4 +1,5 @@
 import { fonts, theme } from './theme';
+import type { Rect } from './ui';
 
 export interface GameScreen {
   canvas: WechatMinigame.Canvas;
@@ -53,6 +54,32 @@ function loadLogo(): void {
     logoReady = false;
     logoImage = null;
   }
+}
+
+/** 内容区顶边：避开状态栏 + 右上角胶囊菜单 */
+export function getContentTop(): number {
+  const belowMenu = 12;
+
+  try {
+    const menu = wx.getMenuButtonBoundingClientRect();
+    if (menu && menu.bottom > 0) {
+      return Math.round(menu.bottom + belowMenu);
+    }
+  } catch {
+    // ignore
+  }
+
+  const info = wx.getSystemInfoSync();
+  const safeTop = info.safeArea?.top ?? info.statusBarHeight ?? 20;
+  // 无胶囊信息时：状态栏 + 约胶囊高度
+  return Math.round(safeTop + 44 + belowMenu);
+}
+
+/** 左上角「退回/返回大厅」可点区域 */
+export function getBackButtonRect(width: number): Rect {
+  const pad = theme.pad;
+  const top = getContentTop();
+  return { x: pad, y: top, w: 88, h: 36 };
 }
 
 export function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number): void {

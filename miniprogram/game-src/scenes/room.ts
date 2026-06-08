@@ -1,16 +1,23 @@
 import type { User } from '@shared/types/room';
 import { getAvatarEmoji } from '@shared/constants/avatars';
-import { drawBackground, getScreen } from '../canvas/screen';
+import { drawBackground, getBackButtonRect, getContentTop, getScreen } from '../canvas/screen';
 import { fonts, theme } from '../canvas/theme';
 import { drawButton, drawLabel, drawPanel, hit, type ButtonSpec, type Rect } from '../canvas/ui';
+import { drawRoomIdHero, drawPlayerGrid } from '../canvas/drawCommon';
 import { clearSession, persistSelf } from '../lib/storage';
-import { isRemoteSyncEnabled, roomSync } from '../lib/sync';
+import { roomSync } from '../lib/sync';
 import { goLobby } from './router';
 import { clearRoomState, getRoomState, setRoomState, type RoomSceneState } from './roomState';
 
 export type { RoomSceneState };
 let unsubscribe: (() => void) | null = null;
 let buttons: ButtonSpec[] = [];
+let roomIdCopyRect: Rect | null = null;
+let backButtonRect: Rect | null = null;
+let startHintUntil = 0;
+
+const START_HINT = '至少2个人才可以开始';
+const START_HINT_MS = 2800;
 
 export function initRoom(
   roomId: string,
@@ -40,6 +47,7 @@ export function teardownRoom(): void {
     unsubscribe = null;
   }
   clearRoomState();
+  startHintUntil = 0;
 }
 
 export function renderRoom(): void {
@@ -53,10 +61,14 @@ export function renderRoom(): void {
   }
 
   const pad = theme.pad;
-  let y = pad + 8;
-  drawLabel(ctx, `ROOM ${room.roomId}`, pad, y, theme.gray, fonts.sub);
-  drawLabel(ctx, '退回大厅', width - pad, y, theme.green, fonts.small, 'right');
-  y += 36;
+  const top = getContentTop();
+
+  backButtonRect = getBackButtonRect(width);
+  drawLabel(ctx, '退回大厅', pad, top + 8, theme.green, fonts.small, 'left');
+
+  const hero = drawRoomIdHero(ctx, width, room.roomId, top + 44);
+  roomIdCopyRect = hero.rect;
+  let y = hero.nextY;
 
   if (getRoomState().entryMessage) {
     const banner: Rect = { x: pad, y, w: width - pad * 2, h: 56 };
@@ -88,71 +100,90 @@ export function renderRoom(): void {
   );
   y += 28;
 
+  const contentW = width - pad * 2;
   const sorted = [...room.players].sort((a, b) => a.joinedAt - b.joinedAt);
-  for (const u of sorted) {
-    const row: Rect = { x: pad, y, w: width - pad * 2, h: 52 };
-    drawPanel(ctx, row);
-    ctx.font = fonts.emoji;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(getAvatarEmoji(u.avatarId), row.x + 12, row.y + row.h / 2);
-    let label = u.name;
-    if (u.id === self.id) label += '（你）';
-    if (u.id === room.hostId) label += ' · 房主';
-    drawLabel(ctx, label, row.x + 48, row.y + 16, theme.gray, fonts.body);
-    y += 60;
+  y = drawPlayerGrid(
+    ctx,
+    pad,
+    y,
+    contentW,
+    sorted.map((u) => ({
+      avatarEmoji: getAvatarEmoji(u.avatarId),
+      name: u.name,
+      isHost: u.id === room.hostId,
+      isSelf: u.id === self.id,
+    })),
+  );
+
+  y += 8;
+  if (!isHost && !isSpectator) {
+    drawLabel(ctx, '等待房主开启游戏…', pad, y, theme.muted, fonts.body);
+    y += 28;
   }
 
   buttons = [];
-  const btnW = width - pad * 2;
-
-  if (!isRemoteSyncEnabled() && isHost && room.players.length < 2) {
-    buttons.push({
-      id: 'mock',
-      label: '添加测试玩家',
-      x: pad,
-      y,
-      w: btnW,
-      h: 44,
-      variant: 'secondary',
-    });
-    y += 52;
-  }
+  const btnGap = 12;
+  const btnH = 48;
+  const rowW = width - pad * 2;
+  const halfBtnW = Math.floor((rowW - btnGap) / 2);
 
   if (isHost && !isSpectator) {
     const canStart = room.players.length >= 2;
     buttons.push({
-      id: 'start',
-      label: canStart ? '开始游戏' : '至少 2 人才能开始',
+      id: 'share',
+      label: '邀请好友',
       x: pad,
       y,
-      w: btnW,
-      h: 48,
-      variant: canStart ? 'primary' : 'secondary',
+      w: halfBtnW,
+      h: btnH,
+      variant: 'green',
+    });
+    buttons.push({
+      id: 'start',
+      label: '开始',
+      x: pad + halfBtnW + btnGap,
+      y,
+      w: halfBtnW,
+      h: btnH,
+      variant: 'green',
       disabled: !canStart,
     });
-    y += 56;
+  } else {
+    buttons.push({
+      id: 'share',
+      label: '邀请好友',
+      x: pad,
+      y,
+      w: rowW,
+      h: btnH,
+      variant: 'green',
+    });
   }
-
-  buttons.push({
-    id: 'share',
-    label: '邀请好友',
-    x: pad,
-    y,
-    w: btnW,
-    h: 48,
-    variant: 'primary',
-  });
 
   for (const btn of buttons) {
     drawButton(ctx, btn);
+  }
+
+  if (isHost && !isSpectator && startHintUntil > Date.now()) {
+    const startBtn = buttons.find((b) => b.id === 'start');
+    if (startBtn) {
+      drawLabel(
+        ctx,
+        START_HINT,
+        startBtn.x + startBtn.w / 2,
+        startBtn.y + startBtn.h + 10,
+        theme.fail,
+        fonts.small,
+        'center',
+      );
+    }
   }
 }
 
 export async function onRoomTouch(x: number, y: number): Promise<void> {
   const { width } = getScreen();
-  if (y <= 40 && x >= width - 100) {
+
+  if (backButtonRect && hit(backButtonRect, x, y)) {
     await roomSync.leaveRoom(getRoomState().roomId, getRoomState().self?.id ?? '');
     clearSession();
     teardownRoom();
@@ -160,25 +191,40 @@ export async function onRoomTouch(x: number, y: number): Promise<void> {
     return;
   }
 
+  if (roomIdCopyRect && hit(roomIdCopyRect, x, y)) {
+    const roomId = getRoomState().roomId;
+    wx.setClipboardData({
+      data: roomId,
+      success: () => {
+        wx.showToast({ title: '已复制房间号', icon: 'success' });
+      },
+    });
+    return;
+  }
+
   for (const btn of buttons) {
-    if (btn.disabled) continue;
     if (!hit(btn, x, y)) continue;
 
-    if (btn.id === 'mock') {
-      await roomSync.addMockGuests(getRoomState().roomId, 2);
-      return;
-    }
-    if (btn.id === 'start' && getRoomState().self) {
-      const result = await roomSync.startGame(getRoomState().roomId, getRoomState().self!.id);
-      if (result && 'code' in result) {
-        wx.showToast({ title: result.message, icon: 'none' });
+    if (btn.id === 'start') {
+      if (btn.disabled) {
+        startHintUntil = Date.now() + START_HINT_MS;
+        return;
+      }
+      if (getRoomState().self) {
+        const result = await roomSync.startGame(getRoomState().roomId, getRoomState().self!.id);
+        if (result && 'code' in result) {
+          wx.showToast({ title: result.message, icon: 'none' });
+        }
       }
       return;
     }
+
+    if (btn.disabled) continue;
+
     if (btn.id === 'share') {
       wx.shareAppMessage({
         title: `来一起玩脑波专家！房间号 ${getRoomState().roomId}`,
-        query: `roomId=${getRoomState().roomId}`,
+        query: `roomId=${encodeURIComponent(getRoomState().roomId)}`,
         imageUrl: 'assets/share-500x400.png',
       });
       return;
@@ -190,7 +236,7 @@ export function getRoomShareConfig(): WechatMinigame.ShareAppMessageOption {
   const { roomId } = getRoomState();
   return {
     title: `来一起玩脑波专家！房间号 ${roomId}`,
-    query: `roomId=${roomId}`,
+    query: `roomId=${encodeURIComponent(roomId)}`,
     imageUrl: 'assets/share-500x400.png',
   };
 }

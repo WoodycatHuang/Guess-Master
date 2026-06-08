@@ -51,6 +51,10 @@ class LocalMockSyncService implements RoomSyncService {
     return this.engine.getRoom(roomId);
   }
 
+  async fetchRoom(roomId: string): Promise<Room | null> {
+    return this.getRoom(roomId);
+  }
+
   subscribe(roomId: string, listener: RoomListener): () => void {
     const id = normalizeRoomId(roomId);
     if (!this.listeners.has(id)) {

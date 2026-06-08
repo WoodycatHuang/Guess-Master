@@ -10,10 +10,16 @@ declare namespace WechatMinigame {
     createCanvas(): Canvas;
     createImage(): Image;
     getSystemInfoSync(): SystemInfo;
+    getMenuButtonBoundingClientRect(): MenuButtonRect;
+    getLaunchOptionsSync(): LaunchOptions;
+    getEnterOptionsSync?(): LaunchOptions;
+    onShow(cb: (opts?: LaunchOptions) => void): void;
+    showLoading(opts: { title: string; mask?: boolean }): void;
+    hideLoading(): void;
+    showShareMenu(opts?: { withShareTicket?: boolean; menus?: string[] }): void;
     onTouchStart(cb: (e: TouchEvent) => void): void;
     onTouchMove(cb: (e: TouchEvent) => void): void;
     onTouchEnd(cb: (e: TouchEvent) => void): void;
-    onShow(cb: (opts?: { query?: Record<string, string> }) => void): void;
     showToast(opts: { title: string; icon?: string; duration?: number }): void;
     showModal(opts: {
       title?: string;
@@ -21,6 +27,7 @@ declare namespace WechatMinigame {
       editable?: boolean;
       placeholderText?: string;
       success?: (r: { confirm: boolean; content?: string }) => void;
+      fail?: () => void;
     }): void;
     showKeyboard(opts: {
       defaultValue?: string;
@@ -39,6 +46,11 @@ declare namespace WechatMinigame {
     onShareAppMessage(cb: () => ShareAppMessageOption): void;
     shareAppMessage(opts: ShareAppMessageOption): void;
     connectSocket(opts: { url: string }): SocketTask;
+    setClipboardData(opts: {
+      data: string;
+      success?: () => void;
+      fail?: () => void;
+    }): void;
     request(opts: {
       url: string;
       method?: string;
@@ -55,12 +67,29 @@ declare namespace WechatMinigame {
     query?: string;
   }
 
+  interface LaunchOptions {
+    query?: Record<string, string> | string;
+    scene?: number;
+    shareTicket?: string;
+  }
+
   interface SystemInfo {
     screenWidth: number;
     screenHeight: number;
     pixelRatio: number;
     windowWidth: number;
     windowHeight: number;
+    statusBarHeight?: number;
+    safeArea?: { top: number; bottom: number; left: number; right: number };
+  }
+
+  interface MenuButtonRect {
+    width: number;
+    height: number;
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
   }
 
   interface TouchEvent {
@@ -93,6 +122,7 @@ declare namespace WechatMinigame {
 
 interface CanvasRenderingContext2D {
   globalAlpha: number;
+  setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void;
   scale(x: number, y: number): void;
   save(): void;
   restore(): void;

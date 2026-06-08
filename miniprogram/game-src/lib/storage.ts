@@ -46,10 +46,3 @@ export function loadSession(): { userId: string; roomId: string } | null {
 export function clearSession(): void {
   wx.removeStorageSync(SESSION_KEY);
 }
-
-export function parseLaunchQuery(
-  query?: Record<string, string>,
-): { roomId?: string } {
-  if (!query?.roomId) return {};
-  return { roomId: query.roomId.toUpperCase() };
-}

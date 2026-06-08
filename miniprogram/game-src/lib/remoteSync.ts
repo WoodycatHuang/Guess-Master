@@ -103,6 +103,12 @@ class RemoteSyncService implements RoomSyncService {
     return this.roomCache.get(normalizeRoomId(roomId)) ?? null;
   }
 
+  async fetchRoom(roomId: string): Promise<Room | null> {
+    const id = normalizeRoomId(roomId);
+    await this.fetchAndNotify(id);
+    return this.getRoom(id);
+  }
+
   subscribe(roomId: string, listener: RoomListener): () => void {
     const id = normalizeRoomId(roomId);
     if (!this.listeners.has(id)) {

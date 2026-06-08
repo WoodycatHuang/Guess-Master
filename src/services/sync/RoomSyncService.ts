@@ -32,6 +32,7 @@ export interface RoomSyncService {
   ): Promise<JoinRoomResult | JoinRoomError>;
   leaveRoom(roomId: string, userId: string): Promise<boolean>;
   getRoom(roomId: string): Room | null;
+  fetchRoom(roomId: string): Promise<Room | null>;
   subscribe(roomId: string, listener: RoomListener): () => void;
   startGame(
     roomId: string,

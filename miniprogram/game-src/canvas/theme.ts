@@ -3,6 +3,8 @@ export const theme = {
   bgPanel: '#141622',
   bgInput: '#0A0B10',
   green: '#39FF14',
+  greenLight: '#39FF14',
+  greenDark: '#1B5E20',
   greenDim: '#2BC410',
   gray: '#8B9B8A',
   muted: '#4A5249',
@@ -17,5 +19,5 @@ export const fonts = {
   sub: '14px monospace',
   body: '16px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif',
   small: '12px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif',
-  emoji: '28px sans-serif',
+  roomId: 'bold 32px monospace',
 } as const;

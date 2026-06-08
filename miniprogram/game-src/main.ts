@@ -1,10 +1,11 @@
-import { initScreen } from './canvas/screen';
+import { getScreen, initScreen } from './canvas/screen';
+import { readLaunchQuery, roomIdFromQuery } from './lib/launch';
 import { roomSync } from './lib/sync';
 import { onGameTouchEnd, onGameTouchMove, onGameTouchStart, renderGame, resetGameScene } from './scenes/game';
 import { onLobbyTouch, renderLobby } from './scenes/lobby';
 import { onResultTouch, renderResult, resetResultScene } from './scenes/result';
 import { getRoomShareConfig, getRoomState, onRoomTouch, renderRoom } from './scenes/room';
-import { boot, getScene, goLobby, setLaunchQuery } from './scenes/router';
+import { bootLobby, getScene } from './scenes/router';
 
 let rafId = 0;
 let prevRoomStatus: string | null = null;
@@ -16,7 +17,16 @@ function getRoomStatus(): string | null {
   return roomSync.getRoom(roomId)?.status ?? null;
 }
 
+function prepareCanvas(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(pixelRatio, pixelRatio);
+  ctx.globalAlpha = 1;
+}
+
 function render(): void {
+  const { ctx, pixelRatio } = getScreen();
+  prepareCanvas(ctx, pixelRatio);
+
   if (getScene() === 'lobby') {
     renderLobby();
     return;
@@ -85,6 +95,8 @@ function bindTouch(): void {
 }
 
 function bindShare(): void {
+  wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage'] });
+
   wx.onShareAppMessage(() => {
     if (getScene() === 'room') {
       return getRoomShareConfig();
@@ -99,16 +111,12 @@ function bindShare(): void {
 
 export function startGame(): void {
   initScreen();
-  boot();
   bindTouch();
   bindShare();
 
-  wx.onShow((opts) => {
-    setLaunchQuery(opts?.query as Record<string, string> | undefined);
-    if (getScene() === 'lobby') {
-      goLobby();
-    }
-  });
+  const launchQuery = readLaunchQuery();
+  const prefilledRoomId = roomIdFromQuery(launchQuery);
+  bootLobby(prefilledRoomId);
 
   loop();
 }

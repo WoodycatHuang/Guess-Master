@@ -1,17 +1,180 @@
 import { fonts, theme } from './theme';
+import { getContentTop } from './screen';
 import { drawLabel, drawPanel, type Rect } from './ui';
+
+/** 与大厅头像选择格一致 */
+export const AVATAR_CELL_SIZE = 56;
+export const AVATAR_CELL_GAP = 8;
+
+export function calcAvatarCellSize(innerW: number, cols: number): number {
+  return Math.min(
+    AVATAR_CELL_SIZE,
+    Math.floor((innerW - (cols - 1) * AVATAR_CELL_GAP) / cols),
+  );
+}
+
+export function drawAvatarCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  cell: number,
+  emoji: string,
+  opts?: { highlighted?: boolean },
+): void {
+  ctx.fillStyle = theme.bgInput;
+  ctx.strokeStyle = opts?.highlighted ? theme.green : theme.border;
+  ctx.lineWidth = opts?.highlighted ? 3 : 2;
+  ctx.fillRect(x, y, cell, cell);
+  ctx.strokeRect(x, y, cell, cell);
+
+  const emojiSize = Math.round(cell * 0.52);
+  ctx.font = `${emojiSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(emoji, x + cell / 2, y + cell / 2);
+}
+
+function truncateName(name: string, maxWidth: number, ctx: CanvasRenderingContext2D): string {
+  ctx.font = fonts.small;
+  if (ctx.measureText(name).width <= maxWidth) return name;
+  let trimmed = name;
+  while (trimmed.length > 1 && ctx.measureText(`${trimmed}…`).width > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return `${trimmed}…`;
+}
+
+export interface PlayerCardOpts {
+  isHost?: boolean;
+  isSelf?: boolean;
+  cellSize?: number;
+}
+
+/** 玩家卡片：头像格 + 下方昵称，房主带 HOST 标记 */
+export function drawPlayerCard(
+  ctx: CanvasRenderingContext2D,
+  rect: Rect,
+  avatarEmoji: string,
+  name: string,
+  opts?: PlayerCardOpts,
+): void {
+  drawPanel(ctx, rect);
+
+  const cell = Math.min(opts?.cellSize ?? AVATAR_CELL_SIZE, rect.w - 16);
+  const badgeH = 16;
+  const topPad = 10;
+  let avatarY = rect.y + topPad + badgeH + 4;
+
+  if (opts?.isHost) {
+    const badgeW = 44;
+    const bx = rect.x + (rect.w - badgeW) / 2;
+    const by = rect.y + topPad;
+    ctx.fillStyle = theme.green;
+    ctx.fillRect(bx, by, badgeW, badgeH);
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = theme.bg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('HOST', bx + badgeW / 2, by + badgeH / 2);
+  } else {
+    avatarY = rect.y + topPad + badgeH + 4;
+  }
+
+  const ax = rect.x + (rect.w - cell) / 2;
+  drawAvatarCell(ctx, ax, avatarY, cell, avatarEmoji, { highlighted: opts?.isSelf });
+
+  let displayName = name;
+  if (opts?.isSelf) displayName = `${name}（你）`;
+
+  const nameY = avatarY + cell + 8;
+  const label = truncateName(displayName, rect.w - 8, ctx);
+  drawLabel(ctx, label, rect.x + rect.w / 2, nameY, theme.gray, fonts.small, 'center');
+}
+
+export interface PlayerGridItem {
+  avatarEmoji: string;
+  name: string;
+  isHost: boolean;
+  isSelf: boolean;
+}
+
+/** 网格排列玩家卡片，返回内容区底部 y */
+export function drawPlayerGrid(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  players: PlayerGridItem[],
+): number {
+  if (players.length === 0) return y;
+
+  const gap = 12;
+  const cols = width >= 300 ? 4 : 3;
+  const cardW = Math.floor((width - (cols - 1) * gap) / cols);
+  const cell = Math.min(AVATAR_CELL_SIZE, cardW - 16);
+  const cardH = 10 + 16 + 4 + cell + 8 + 20 + 10;
+
+  players.forEach((player, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx = x + col * (cardW + gap);
+    const cy = y + row * (cardH + gap);
+    drawPlayerCard(
+      ctx,
+      { x: cx, y: cy, w: cardW, h: cardH },
+      player.avatarEmoji,
+      player.name,
+      { isHost: player.isHost, isSelf: player.isSelf, cellSize: cell },
+    );
+  });
+
+  const rows = Math.ceil(players.length / cols);
+  return y + rows * (cardH + gap);
+}
 
 export function drawRoomHeader(
   ctx: CanvasRenderingContext2D,
   width: number,
   roomId: string,
   backLabel: string,
+  startY?: number,
 ): number {
   const pad = theme.pad;
-  let y = pad + 8;
-  drawLabel(ctx, `ROOM ${roomId}`, pad, y, theme.gray, fonts.sub);
-  drawLabel(ctx, backLabel, width - pad, y, theme.green, fonts.small, 'right');
-  return y + 36;
+  let y = startY ?? getContentTop();
+  drawLabel(ctx, backLabel, pad, y + 8, theme.green, fonts.small, 'left');
+  drawLabel(ctx, `ROOM ${roomId}`, width - pad, y + 8, theme.gray, fonts.sub, 'right');
+  return y + 44;
+}
+
+/** 等待页：大号房间号 + 点击复制 */
+export function drawRoomIdHero(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  roomId: string,
+  startY: number,
+): { rect: Rect; nextY: number } {
+  const pad = theme.pad;
+  const rect: Rect = { x: pad, y: startY, w: width - pad * 2, h: 96 };
+  drawPanel(ctx, rect);
+
+  drawLabel(ctx, 'ROOM ID', rect.x + 16, rect.y + 12, theme.muted, fonts.small);
+  ctx.font = fonts.roomId;
+  ctx.fillStyle = theme.green;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(roomId, rect.x + rect.w / 2, rect.y + 50);
+  drawLabel(
+    ctx,
+    '点击复制房间号',
+    rect.x + rect.w / 2,
+    rect.y + rect.h - 22,
+    theme.gray,
+    fonts.small,
+    'center',
+  );
+
+  return { rect, nextY: rect.y + rect.h + 16 };
 }
 
 export function drawTopicCard(

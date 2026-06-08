@@ -14,11 +14,27 @@ export function hit(rect: Rect, x: number, y: number): boolean {
 export interface ButtonSpec extends Rect {
   id: string;
   label: string;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'green';
   disabled?: boolean;
 }
 
 export function drawButton(ctx: CanvasRenderingContext2D, btn: ButtonSpec): void {
+  if (btn.variant === 'green') {
+    const fill = btn.disabled ? theme.greenDark : theme.greenLight;
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = fill;
+    ctx.lineWidth = 3;
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+    ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+
+    ctx.font = fonts.body.replace('16px', '15px');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = btn.disabled ? theme.gray : theme.bg;
+    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
+    return;
+  }
+
   const isPrimary = btn.variant === 'primary' && !btn.disabled;
   const isSecondary = btn.variant === 'secondary' || btn.disabled;
 

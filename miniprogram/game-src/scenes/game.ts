@@ -1,7 +1,7 @@
 import type { Room, User } from '@shared/types/room';
 import { getAvatarEmoji } from '@shared/constants/avatars';
 import { drawPlayerChip, drawRoomHeader, drawTopicCard } from '../canvas/drawCommon';
-import { drawBackground, getScreen } from '../canvas/screen';
+import { drawBackground, getBackButtonRect, getScreen } from '../canvas/screen';
 import { fonts, theme } from '../canvas/theme';
 import { drawButton, drawLabel, drawPanel, hit, type ButtonSpec, type Rect } from '../canvas/ui';
 import { clearSession, persistSelf } from '../lib/storage';
@@ -245,7 +245,7 @@ export async function onGameTouchEnd(x: number, y: number): Promise<void> {
 
   clearPendingPress();
 
-  if (y <= 40 && x >= width - 100) {
+  if (hit(getBackButtonRect(width), x, y)) {
     await roomSync.leaveRoom(getRoomState().roomId, self?.id ?? '');
     clearSession();
     teardownRoom();

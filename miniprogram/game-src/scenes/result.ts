@@ -6,7 +6,7 @@ import {
   evaluateSortedCards,
 } from '@shared/services/sync/roomUtils';
 import { drawFlipRevealCard, drawRoomHeader, drawTopicCard } from '../canvas/drawCommon';
-import { drawBackground, getScreen } from '../canvas/screen';
+import { drawBackground, getBackButtonRect, getScreen } from '../canvas/screen';
 import { fonts, theme } from '../canvas/theme';
 import { drawButton, drawLabel, hit, type ButtonSpec, type Rect } from '../canvas/ui';
 import { clearSession } from '../lib/storage';
@@ -228,7 +228,7 @@ export async function onResultTouch(x: number, y: number): Promise<void> {
   const self = getRoomState().self;
   const room = roomSync.getRoom(getRoomState().roomId);
 
-  if (y <= 40 && x >= width - 100) {
+  if (hit(getBackButtonRect(width), x, y)) {
     await roomSync.leaveRoom(getRoomState().roomId, self?.id ?? '');
     clearSession();
     teardownRoom();

@@ -1,5 +1,6 @@
 import { AVATAR_EMOJIS } from '@shared/constants/avatars';
-import { drawBackground, drawHeader, getScreen } from '../canvas/screen';
+import { drawBackground, drawHeader, getContentTop, getScreen } from '../canvas/screen';
+import { calcAvatarCellSize, drawAvatarCell, AVATAR_CELL_GAP } from '../canvas/drawCommon';
 import { fonts, theme } from '../canvas/theme';
 import {
   drawButton,
@@ -10,6 +11,7 @@ import {
   type ButtonSpec,
   type Rect,
 } from '../canvas/ui';
+import { promptNickname, promptRoomId } from '../lib/prompts';
 import { loadProfile, saveProfile } from '../lib/storage';
 import { isRemoteSyncEnabled, roomSync } from '../lib/sync';
 import { goRoom } from './router';
@@ -39,7 +41,7 @@ export function initLobby(launchRoomId?: string): void {
   const profile = loadProfile();
   state = {
     nickname: profile.nickname,
-    avatarId: profile.avatarId,
+    avatarId: profile.avatarId || 1,
     roomIdInput: launchRoomId ?? '',
     focus: 'none',
     busy: false,
@@ -51,7 +53,7 @@ export function renderLobby(): void {
   drawBackground(ctx, width, height);
 
   const pad = theme.pad;
-  let y = drawHeader(ctx, width, pad + 8);
+  let y = drawHeader(ctx, width, getContentTop());
 
   const panel: Rect = { x: pad, y, w: width - pad * 2, h: height - y - pad };
   drawPanel(ctx, panel);
@@ -70,36 +72,29 @@ export function renderLobby(): void {
   iy += 22;
 
   const cols = 5;
-  const cell = Math.min(56, (innerW - (cols - 1) * 8) / cols);
+  const cell = calcAvatarCellSize(innerW, cols);
   avatarRects = [];
   for (let i = 0; i < AVATAR_EMOJIS.length; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const id = i + 1;
-    const ax = innerX + col * (cell + 8);
-    const ay = iy + row * (cell + 8);
+    const ax = innerX + col * (cell + AVATAR_CELL_GAP);
+    const ay = iy + row * (cell + AVATAR_CELL_GAP);
     const rect = { x: ax, y: ay, w: cell, h: cell, id };
     avatarRects.push(rect);
 
-    const selected = state.avatarId === id;
-    ctx.fillStyle = theme.bgInput;
-    ctx.strokeStyle = selected ? theme.green : theme.border;
-    ctx.lineWidth = selected ? 3 : 2;
-    ctx.fillRect(ax, ay, cell, cell);
-    ctx.strokeRect(ax, ay, cell, cell);
-    ctx.font = fonts.emoji;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(AVATAR_EMOJIS[i], ax + cell / 2, ay + cell / 2);
+    drawAvatarCell(ctx, ax, ay, cell, AVATAR_EMOJIS[i], {
+      highlighted: state.avatarId === id,
+    });
   }
-  iy += Math.ceil(AVATAR_EMOJIS.length / cols) * (cell + 8) + 12;
+  iy += Math.ceil(AVATAR_EMOJIS.length / cols) * (cell + AVATAR_CELL_GAP) + 12;
 
   drawLabel(ctx, 'ROOM ID', innerX, iy, theme.gray, fonts.small);
   iy += 20;
   roomRect = { x: innerX, y: iy, w: innerW * 0.55, h: 44 };
   drawInput(ctx, roomRect, state.roomIdInput, '房间号', state.focus === 'roomId');
 
+  const canJoin = !state.busy && Boolean(state.roomIdInput.trim());
   const joinBtn: ButtonSpec = {
     id: 'join',
     label: '加入',
@@ -107,8 +102,8 @@ export function renderLobby(): void {
     y: iy,
     w: innerW * 0.42,
     h: 44,
-    variant: 'secondary',
-    disabled: state.busy,
+    variant: 'green',
+    disabled: !canJoin,
   };
   drawButton(ctx, joinBtn);
   iy += 56;
@@ -128,7 +123,7 @@ export function renderLobby(): void {
 
   const hint = isRemoteSyncEnabled()
     ? '已连接联机服务器'
-    : '演示模式：单机可测，真联机需配置服务器';
+    : '演示模式：需配置服务器后多人联机';
   drawLabel(ctx, hint, innerX, iy, theme.muted, fonts.small, 'center');
 
   buttons = [joinBtn, createBtn];
@@ -139,45 +134,9 @@ function profile() {
   return { name: state.nickname.trim(), avatarId: state.avatarId };
 }
 
-function promptNickname(): Promise<string | null> {
-  return new Promise((resolve) => {
-    wx.showModal({
-      title: '输入昵称',
-      editable: true,
-      placeholderText: '你的昵称',
-      content: state.nickname,
-      success: (res) => {
-        if (res.confirm && res.content?.trim()) {
-          resolve(res.content.trim());
-        } else {
-          resolve(null);
-        }
-      },
-    });
-  });
-}
-
-function promptRoomId(): Promise<string | null> {
-  return new Promise((resolve) => {
-    wx.showModal({
-      title: '输入房间号',
-      editable: true,
-      placeholderText: '6 位房间号',
-      content: state.roomIdInput,
-      success: (res) => {
-        if (res.confirm && res.content?.trim()) {
-          resolve(res.content.trim().toUpperCase());
-        } else {
-          resolve(null);
-        }
-      },
-    });
-  });
-}
-
 async function ensureNickname(): Promise<boolean> {
   if (state.nickname.trim()) return true;
-  const name = await promptNickname();
+  const name = await promptNickname(state.nickname);
   if (!name) {
     wx.showToast({ title: '请输入昵称', icon: 'none' });
     return false;
@@ -208,7 +167,7 @@ async function handleJoin(): Promise<void> {
   if (state.busy) return;
   if (!(await ensureNickname())) return;
   if (!state.roomIdInput.trim()) {
-    const id = await promptRoomId();
+    const id = await promptRoomId(state.roomIdInput);
     if (!id) {
       wx.showToast({ title: '请输入房间号', icon: 'none' });
       return;
@@ -222,10 +181,7 @@ async function handleJoin(): Promise<void> {
       roomId: state.roomIdInput.trim(),
     });
     if ('code' in result) {
-      const hint = !isRemoteSyncEnabled()
-        ? '（演示模式，请配置服务器）'
-        : '';
-      wx.showToast({ title: result.message + hint, icon: 'none' });
+      wx.showToast({ title: result.message, icon: 'none', duration: 2500 });
       return;
     }
     goRoom(result.room.roomId, result.self, result.message);
@@ -241,7 +197,7 @@ async function handleJoin(): Promise<void> {
 
 export async function onLobbyTouch(x: number, y: number): Promise<void> {
   if (hit(nickRect, x, y)) {
-    const name = await promptNickname();
+    const name = await promptNickname(state.nickname);
     if (name) {
       state.nickname = name;
       saveProfile({ nickname: name, avatarId: state.avatarId });
@@ -250,7 +206,7 @@ export async function onLobbyTouch(x: number, y: number): Promise<void> {
   }
 
   if (hit(roomRect, x, y)) {
-    const id = await promptRoomId();
+    const id = await promptRoomId(state.roomIdInput);
     if (id) state.roomIdInput = id;
     return;
   }
@@ -271,8 +227,4 @@ export async function onLobbyTouch(x: number, y: number): Promise<void> {
       return;
     }
   }
-}
-
-export function getLobbyState(): LobbyState {
-  return state;
 }
