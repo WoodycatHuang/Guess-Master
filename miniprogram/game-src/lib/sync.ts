@@ -1,8 +1,8 @@
 import { localMockSync } from '@shared/services/sync/LocalMockSyncService';
+import { createRemoteSyncService } from './remoteSync';
+import { getSyncBaseUrl, isRemoteSyncEnabled } from './syncConfig';
 
-/** 演示模式：本地房间引擎。备案后在此切换 wx.request 远程同步 */
-export const roomSync = localMockSync;
+const baseUrl = getSyncBaseUrl();
+export const roomSync = baseUrl ? createRemoteSyncService(baseUrl) : localMockSync;
 
-export function isRemoteSyncEnabled(): boolean {
-  return false;
-}
+export { isRemoteSyncEnabled };

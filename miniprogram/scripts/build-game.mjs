@@ -74,8 +74,29 @@ function afterBuild() {
   console.log('[minigame] dist/ ready (game.js + game.json + assets)');
 }
 
+function loadSyncUrl() {
+  const envPath = path.join(ROOT, '.env.development');
+  if (!fs.existsSync(envPath)) return '';
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (key === 'SYNC_URL' || key === 'GUESS_MASTER_SYNC_URL') {
+      return value;
+    }
+  }
+  return '';
+}
+
 async function build({ watch = false } = {}) {
   fs.mkdirSync(DIST, { recursive: true });
+  const syncUrl = loadSyncUrl();
+  if (syncUrl) {
+    console.log(`[minigame] SYNC_URL=${syncUrl}`);
+  }
 
   const options = {
     entryPoints: [path.join(ROOT, 'game-src/main.ts')],
@@ -85,6 +106,9 @@ async function build({ watch = false } = {}) {
     format: 'iife',
     target: ['es2018'],
     sourcemap: false,
+    define: {
+      __SYNC_URL__: JSON.stringify(syncUrl),
+    },
     alias: {
       '@shared': SHARED,
     },

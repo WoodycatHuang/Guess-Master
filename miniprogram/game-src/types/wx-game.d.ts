@@ -38,6 +38,7 @@ declare namespace WechatMinigame {
     removeStorageSync(key: string): void;
     onShareAppMessage(cb: () => ShareAppMessageOption): void;
     shareAppMessage(opts: ShareAppMessageOption): void;
+    connectSocket(opts: { url: string }): SocketTask;
     request(opts: {
       url: string;
       method?: string;
@@ -79,6 +80,14 @@ declare namespace WechatMinigame {
     onerror: (() => void) | null;
     width: number;
     height: number;
+  }
+
+  interface SocketTask {
+    onOpen(cb: () => void): void;
+    onMessage(cb: (e: { data: string | ArrayBuffer }) => void): void;
+    onClose(cb: () => void): void;
+    onError(cb: () => void): void;
+    close(opts?: Record<string, unknown>): void;
   }
 }
 

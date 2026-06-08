@@ -1,4 +1,3 @@
-import Taro from '@tarojs/taro';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 import {
   CreateRoomInput,
@@ -13,9 +12,14 @@ import {
   RoomListener,
   RoomSyncService,
 } from '@shared/services/sync/RoomSyncService';
-import { getSyncWsUrl } from '../config/sync';
+import { getSyncWsUrl } from './syncConfig';
 
-async function readResponseJson<T>(res: Taro.request.SuccessCallbackResult): Promise<T> {
+type WxRequestResult = {
+  statusCode: number;
+  data: unknown;
+};
+
+function readResponseJson<T>(res: WxRequestResult): T {
   const data = res.data;
   if (data === '' || data == null) {
     throw new Error(`服务器无响应 (${res.statusCode})`);
@@ -23,32 +27,44 @@ async function readResponseJson<T>(res: Taro.request.SuccessCallbackResult): Pro
   return data as T;
 }
 
+function request(
+  url: string,
+  method: 'GET' | 'POST',
+  data?: unknown,
+): Promise<WxRequestResult> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url,
+      method,
+      header: { 'Content-Type': 'application/json' },
+      data,
+      success: resolve,
+      fail: () => {
+        reject(
+          new Error(
+            `无法连接 ${url}\n请确认服务器已启动，且已配置合法域名或勾选「不校验合法域名」`,
+          ),
+        );
+      },
+    });
+  });
+}
+
 async function postJson<T>(
   baseUrl: string,
   path: string,
   body: unknown,
 ): Promise<T> {
-  try {
-    const res = await Taro.request({
-      url: `${baseUrl}${path}`,
-      method: 'POST',
-      header: { 'Content-Type': 'application/json' },
-      data: body,
-    });
-    return readResponseJson<T>(res);
-  } catch {
-    throw new Error(
-      `无法连接 ${baseUrl}\n请确认服务器已启动，且开发者工具已勾选「不校验合法域名」`,
-    );
-  }
+  const res = await request(`${baseUrl}${path}`, 'POST', body);
+  return readResponseJson<T>(res);
 }
 
 class RemoteSyncService implements RoomSyncService {
   private readonly baseUrl: string;
   private readonly roomCache = new Map<string, Room | null>();
   private readonly listeners = new Map<string, Set<RoomListener>>();
-  private readonly sockets = new Map<string, Taro.SocketTask>();
-  private readonly pollTimers = new Map<string, ReturnType<typeof setInterval>>();
+  private readonly sockets = new Map<string, WechatMinigame.SocketTask>();
+  private readonly pollTimers = new Map<string, number>();
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
@@ -185,15 +201,12 @@ class RemoteSyncService implements RoomSyncService {
 
   private async fetchAndNotify(id: string): Promise<void> {
     try {
-      const res = await Taro.request({
-        url: `${this.baseUrl}/rooms/${id}`,
-        method: 'GET',
-      });
+      const res = await request(`${this.baseUrl}/rooms/${id}`, 'GET');
       if (res.statusCode === 404) {
         this.notify(id, null);
         return;
       }
-      const room = await readResponseJson<Room>(res);
+      const room = readResponseJson<Room>(res);
       this.notify(id, room);
     } catch {
       // 保留缓存
@@ -204,7 +217,7 @@ class RemoteSyncService implements RoomSyncService {
     if (this.sockets.has(id)) return;
 
     const wsUrl = `${getSyncWsUrl(this.baseUrl)}?roomId=${encodeURIComponent(id)}`;
-    const ws = Taro.connectSocket({ url: wsUrl });
+    const ws = wx.connectSocket({ url: wsUrl });
 
     ws.onMessage((event) => {
       try {
@@ -244,7 +257,7 @@ class RemoteSyncService implements RoomSyncService {
     if (this.pollTimers.has(id)) return;
     const timer = setInterval(() => {
       void this.fetchAndNotify(id);
-    }, 2000);
+    }, 2000) as unknown as number;
     this.pollTimers.set(id, timer);
   }
 
@@ -267,9 +280,6 @@ class RemoteSyncService implements RoomSyncService {
   }
 }
 
-export function createRemoteSyncService(
-  baseUrl: string | null,
-): RemoteSyncService | null {
-  if (!baseUrl) return null;
+export function createRemoteSyncService(baseUrl: string): RemoteSyncService {
   return new RemoteSyncService(baseUrl);
 }
