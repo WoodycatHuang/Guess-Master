@@ -37,6 +37,10 @@
     "miniprogram:dev": "npm run dev:game --prefix miniprogram",
     "miniprogram:build": "npm run build:game --prefix miniprogram",
     "miniprogram:assets": "node scripts/generate-miniprogram-assets.mjs",
+    "web:dev": "npm run dev --prefix web",
+    "web:build": "npm run build --prefix web",
+    "weapp:dev": "npm run dev:weapp --prefix weapp",
+    "weapp:build": "npm run build:weapp --prefix weapp",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"

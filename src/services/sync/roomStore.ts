@@ -7,16 +7,7 @@ type GuessMasterGlobal = typeof globalThis & {
 };
 
 function getGlobalStore(): GuessMasterGlobal {
-  if (typeof globalThis !== 'undefined') {
-    return globalThis as GuessMasterGlobal;
-  }
-  if (typeof global !== 'undefined') {
-    return global as GuessMasterGlobal;
-  }
-  if (typeof wx !== 'undefined') {
-    return wx as unknown as GuessMasterGlobal;
-  }
-  return {} as GuessMasterGlobal;
+  return globalThis as GuessMasterGlobal;
 }
 
 const globalStore = getGlobalStore();
