@@ -1,0 +1,22 @@
+[Unit]
+Description=Guess Master sync server (api.guessmaster.cn)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/Guess-Master
+Environment=SYNC_PORT=8787
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm run sync-server
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+
+# 安装：
+#   sudo cp deploy/systemd/guess-master-sync.service /etc/systemd/system/
+#   编辑 WorkingDirectory / User 与服务器实际路径一致
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now guess-master-sync

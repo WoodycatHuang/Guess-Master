@@ -43,7 +43,25 @@ cd ~/Guess-Master && npm run web:dev
 cd ~/Guess-Master && npm run web:build
 ```
 
-产物在 `web/dist/`，上传到服务器 Nginx 网站根目录。
+产物在 `web/dist/`。
+
+**一键部署**（需先配置 `deploy/.env`，详见 [`deploy/README.md`](../deploy/README.md)）：
+
+```bash
+cp deploy/env.example deploy/.env   # 填写 DEPLOY_HOST
+npm run deploy:web    # 上传 H5
+npm run deploy:api    # 更新联机服务
+npm run deploy:smoke  # 自检
+```
+
+## M5 验收步骤
+
+完整部署说明见 **[deploy/README.md](../deploy/README.md)**。
+
+1. https://guessmaster.cn 可打开大厅
+2. https://api.guessmaster.cn/health 返回 ok
+3. 创建房间、联机、困难模式、结果页全流程可用
+4. 分享链接 `https://guessmaster.cn/?room=xxxx` 有效
 
 ## M4 验收步骤
 
