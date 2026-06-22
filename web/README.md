@@ -20,6 +20,14 @@ cd ~/Guess-Master && npm run web:build
 
 产物在 `web/dist/`，上传到服务器 Nginx 网站根目录。
 
+## M2 验收步骤
+
+1. `npm run web:dev`
+2. 房主：创建房间 → 点「+ 添加测试玩家」直到 ≥2 人
+3. 点「开始游戏」→ 选简单/困难 → 应跳转到游戏页（显示话题与你的数字牌）
+4. 复制邀请链接，另一台设备打开 `/?room=xxxx` → 加入同一房间
+5. 生产构建后分享链接格式为 `https://guessmaster.cn/?room=xxxx`
+
 ## M1 验收步骤
 
 1. 终端执行 `npm run web:dev`

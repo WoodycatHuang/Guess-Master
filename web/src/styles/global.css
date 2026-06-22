@@ -229,6 +229,154 @@ body {
   margin-bottom: 12px;
 }
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  text-align: center;
+  font-size: 1.15rem;
+  margin: 0 0 8px;
+  letter-spacing: 0.04em;
+}
+
+.player-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.player-cell {
+  width: 76px;
+  text-align: center;
+}
+
+.player-avatar-box {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border: 2px solid #2a2d3a;
+  border-radius: 4px;
+  background: #141622;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-avatar-box--host {
+  border-color: #ffe600;
+  background: rgba(255, 230, 0, 0.06);
+}
+
+.player-emoji-lg {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.host-dot {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  background: #ffe600;
+  color: #0d0e15;
+  font-size: 0.6rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-cell-name {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: #8b9b8a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel--muted {
+  margin-top: 16px;
+  background: rgba(20, 22, 34, 0.6);
+}
+
+.panel--accent {
+  border-color: #39ff14;
+}
+
+.share-url {
+  word-break: break-all;
+  font-size: 0.65rem;
+  margin-bottom: 16px;
+}
+
+.topic-title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: #fff;
+  line-height: 1.4;
+}
+
+.card-hero {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #39ff14;
+  margin: 8px 0;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.modal {
+  width: 100%;
+  max-width: 360px;
+}
+
+.modal-title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.link-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: none;
+  border: none;
+  color: #8b9b8a;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
 .toast-error {
   background: rgba(255, 0, 85, 0.12);
   border: 1px solid #ff0055;

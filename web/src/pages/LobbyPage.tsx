@@ -31,9 +31,9 @@ export default function LobbyPage() {
     return p;
   };
 
-  const enterRoom = (roomId: string, selfId: string) => {
+  const enterRoom = (roomId: string, selfId: string, message?: string) => {
     persistSession(selfId, roomId);
-    navigate(`/room/${roomId}`);
+    navigate(`/room/${roomId}`, { state: message ? { entryMessage: message } : undefined });
   };
 
   const handleCreate = async () => {
@@ -73,7 +73,7 @@ export default function LobbyPage() {
         setError(result.message);
         return;
       }
-      enterRoom(result.room.roomId, result.self.id);
+      enterRoom(result.room.roomId, result.self.id, result.message);
     } catch (e) {
       setError(e instanceof Error ? e.message : '加入失败');
     } finally {
