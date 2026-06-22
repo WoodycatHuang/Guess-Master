@@ -22,6 +22,36 @@ async function readResponseJson<T>(res: Response): Promise<T> {
   }
 }
 
+const FETCH_TIMEOUT_MS = 12_000;
+
+function connectionHint(baseUrl: string): string {
+  if (/localhost|127\.0\.0\.1/.test(baseUrl)) {
+    return `无法连接 ${baseUrl}。请另开终端运行：npm run sync-server`;
+  }
+  return `无法连接 ${baseUrl}。请检查网络，或暂时改用本地联机（见 web/README.md）`;
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init?: RequestInit,
+  hintBase?: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error(
+        `连接超时（${FETCH_TIMEOUT_MS / 1000}s），${connectionHint(hintBase ?? url)}`,
+      );
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function postJson<T>(
   baseUrl: string,
   path: string,
@@ -29,17 +59,28 @@ async function postJson<T>(
 ): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new Error(
-      `无法连接 ${baseUrl}\n请确认：\n1. 终端已运行 npm run sync-server\n2. 手机与电脑同一 WiFi\n3. .env 中 IP 正确`,
+    res = await fetchWithTimeout(
+      `${baseUrl}${path}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      baseUrl,
     );
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('连接超时')) throw e;
+    throw new Error(connectionHint(baseUrl));
   }
-  return readResponseJson<T>(res);
+  const data = await readResponseJson<T & { message?: string }>(res);
+  if (!res.ok) {
+    const msg =
+      typeof data === 'object' && data !== null && 'message' in data
+        ? String(data.message)
+        : `请求失败 (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
 }
 
 export async function pingSyncServer(baseUrl: string): Promise<boolean> {
@@ -64,18 +105,26 @@ class RemoteSyncService implements RoomSyncService {
   }
 
   async createRoom(input: CreateRoomInput): Promise<CreateRoomResult> {
-    return postJson<CreateRoomResult>(this.baseUrl, '/rooms', input);
+    const result = await postJson<CreateRoomResult>(this.baseUrl, '/rooms', input);
+    if (result?.room?.roomId) {
+      this.notify(normalizeRoomId(result.room.roomId), result.room);
+    }
+    return result;
   }
 
   async joinRoom(
     input: JoinRoomInput,
   ): Promise<JoinRoomResult | JoinRoomError> {
     const id = normalizeRoomId(input.roomId);
-    return postJson<JoinRoomResult | JoinRoomError>(
+    const result = await postJson<JoinRoomResult | JoinRoomError>(
       this.baseUrl,
       `/rooms/${id}/join`,
       { name: input.name, avatarId: input.avatarId },
     );
+    if (!('code' in result) && result.room?.roomId) {
+      this.notify(id, result.room);
+    }
+    return result;
   }
 
   async leaveRoom(roomId: string, userId: string): Promise<boolean> {
@@ -137,12 +186,13 @@ class RemoteSyncService implements RoomSyncService {
   async startGame(
     roomId: string,
     userId: string,
+    difficulty: import('../../types/room').GameDifficulty = 'easy',
   ): Promise<Room | GameActionError> {
     const id = normalizeRoomId(roomId);
     return postJson<Room | GameActionError>(
       this.baseUrl,
       `/rooms/${id}/start`,
-      { userId },
+      { userId, difficulty },
     );
   }
 

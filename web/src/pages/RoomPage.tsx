@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useRoomSync } from '@shared/hooks/useRoomSync';
+import { isHardModeRoom, HARD_MODE_SERVER_HINT } from '@shared/services/sync/hardMode';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 import type { GameDifficulty } from '@shared/types/room';
 import { Button } from '../components/Button';
@@ -16,7 +17,7 @@ export default function RoomPage() {
   const location = useLocation();
   const entryMessage = (location.state as { entryMessage?: string } | null)?.entryMessage;
 
-  const { room, self, setSelf, leaveRoom, startGame, addMockGuests } =
+  const { room, self, setSelf, leaveRoom, startGame, playAgain, addMockGuests } =
     useRoomSync(roomId || null);
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -76,6 +77,11 @@ export default function RoomPage() {
     if (!result) return;
     if ('code' in result) {
       setError(result.message);
+      return;
+    }
+    if (difficulty === 'hard' && !isHardModeRoom(result)) {
+      setError(HARD_MODE_SERVER_HINT);
+      await playAgain();
     }
   };
 

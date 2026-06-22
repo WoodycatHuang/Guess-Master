@@ -38,6 +38,8 @@
     "miniprogram:build": "npm run build:game --prefix miniprogram",
     "miniprogram:assets": "node scripts/generate-miniprogram-assets.mjs",
     "web:dev": "npm run dev --prefix web",
+    "web:local": "bash scripts/dev-h5.sh",
+    "web:dev:local": "VITE_SYNC_URL=http://127.0.0.1:8787 npm run dev --prefix web",
     "web:build": "npm run build --prefix web",
     "weapp:dev": "npm run dev:weapp --prefix weapp",
     "weapp:build": "npm run build:weapp --prefix weapp",

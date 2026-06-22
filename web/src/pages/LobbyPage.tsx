@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRoomSync } from '@shared/hooks/useRoomSync';
-import { isRemoteSyncEnabled } from '@shared/services/sync';
+import { isRemoteSyncEnabled, getSyncBaseUrl } from '@shared/services/sync';
+import { pingSyncServer } from '@shared/services/sync/RemoteSyncService';
 import { AvatarGrid } from '../components/AvatarGrid';
 import { Button } from '../components/Button';
 import { loadProfile, persistSession, saveProfile } from '../lib/storage';
@@ -16,6 +17,16 @@ export default function LobbyPage() {
   const [roomIdInput, setRoomIdInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [syncOk, setSyncOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const url = getSyncBaseUrl();
+    if (!url) {
+      setSyncOk(false);
+      return;
+    }
+    void pingSyncServer(url).then(setSyncOk);
+  }, []);
 
   useEffect(() => {
     const profile = loadProfile();
@@ -38,13 +49,16 @@ export default function LobbyPage() {
 
   const handleCreate = async () => {
     if (!nickname.trim()) {
-      setError('请输入昵称');
+      setError('请先输入昵称，再点创建房间');
       return;
     }
     setError('');
     setBusy(true);
     try {
       const result = await createRoom(profile());
+      if (!result?.room?.roomId || !result?.self?.id) {
+        throw new Error('服务器返回异常，请检查页面底部联机状态');
+      }
       enterRoom(result.room.roomId, result.self.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : '创建失败');
@@ -125,19 +139,23 @@ export default function LobbyPage() {
             aria-label="房间号"
           />
           <Button variant="secondary" onClick={handleJoin} disabled={busy}>
-            加入
+            {busy ? '处理中…' : '加入'}
           </Button>
         </div>
 
         <Button className="btn--block" onClick={handleCreate} disabled={busy}>
-          创建房间
+          {busy ? '创建中…' : '创建房间'}
         </Button>
       </div>
 
       <p className="hint hint--ok">
         {isRemoteSyncEnabled()
-          ? '已连接联机服务器 · 可邀请朋友加入同一房间'
-          : '未配置联机地址，请检查 VITE_SYNC_URL'}
+          ? syncOk === true
+            ? `联机正常 · ${getSyncBaseUrl()}`
+            : syncOk === false
+              ? `联机不可用 · 请检查 ${getSyncBaseUrl()}（本地需 npm run sync-server）`
+              : '正在检测联机…'
+          : '未配置联机地址，请检查 web/.env.development 中的 VITE_SYNC_URL'}
       </p>
     </main>
   );
