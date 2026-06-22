@@ -236,6 +236,23 @@ body {
   margin-bottom: 12px;
 }
 
+.header-link {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #8b9b8a;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.header-link:hover {
+  color: #39ff14;
+}
+
 .section-title {
   text-align: center;
   font-size: 1.15rem;
@@ -501,6 +518,11 @@ body {
 
 .sort-cell--placeholder {
   opacity: 0.35;
+}
+
+.sort-cell--readonly {
+  cursor: default;
+  touch-action: auto;
 }
 
 .sort-cell--ghost {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FLIP_INTERVAL_MS } from '@shared/constants/result';
 import { useRoomSync } from '@shared/hooks/useRoomSync';
 import {
@@ -8,6 +8,7 @@ import {
 } from '@shared/services/sync/roomUtils';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 import { parseSortSlot, sortSlotBorderColor } from '@shared/services/sync/sortSlots';
+import { BackToLobbyLink } from '../components/BackToLobbyLink';
 import { Button } from '../components/Button';
 import { FlipRevealCard } from '../components/FlipRevealCard';
 import { clearSession, getSessionUserId } from '../lib/storage';
@@ -135,9 +136,7 @@ export default function ResultPage() {
         <span className="hint" style={{ margin: 0 }}>
           ROOM {room.roomId}
         </span>
-        <Link to="/" className="hint" style={{ margin: 0 }}>
-          返回大厅
-        </Link>
+        <BackToLobbyLink onLeave={handleLeave} />
       </div>
 
       <div className="panel">

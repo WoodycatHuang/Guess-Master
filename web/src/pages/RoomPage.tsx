@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useRoomSync } from '@shared/hooks/useRoomSync';
 import { isHardModeRoom, HARD_MODE_SERVER_HINT } from '@shared/services/sync/hardMode';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 import type { GameDifficulty } from '@shared/types/room';
+import { BackToLobbyLink } from '../components/BackToLobbyLink';
 import { Button } from '../components/Button';
 import { DifficultyPicker } from '../components/DifficultyPicker';
 import { RoomWaiting } from '../components/RoomWaiting';
@@ -17,7 +18,7 @@ export default function RoomPage() {
   const location = useLocation();
   const entryMessage = (location.state as { entryMessage?: string } | null)?.entryMessage;
 
-  const { room, self, setSelf, leaveRoom, startGame, playAgain, addMockGuests } =
+  const { room, self, setSelf, leaveRoom, startGame, playAgain } =
     useRoomSync(roomId || null);
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -85,14 +86,6 @@ export default function RoomPage() {
     }
   };
 
-  const handleAddMock = async () => {
-    setError('');
-    const result = await addMockGuests(1);
-    if (!result) {
-      setError('无法添加测试玩家');
-    }
-  };
-
   if (!roomId) return null;
 
   if (!room && hadRoom.current) {
@@ -128,9 +121,7 @@ export default function RoomPage() {
   return (
     <main className="page">
       <div className="page-header">
-        <Link to="/" className="hint">
-          ← 退回大厅
-        </Link>
+        <BackToLobbyLink label="← 退回大厅" onLeave={handleLeave} />
         <span className="status-pill">等待中</span>
       </div>
 
@@ -144,7 +135,6 @@ export default function RoomPage() {
         self={self}
         entryMessage={entryMessage}
         onStart={handleStartClick}
-        onAddMock={handleAddMock}
         onCopyLink={handleCopyLink}
         shareUrl={shareUrl}
       />

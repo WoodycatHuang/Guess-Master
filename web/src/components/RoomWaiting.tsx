@@ -7,7 +7,6 @@ interface Props {
   self: User;
   entryMessage?: string;
   onStart: () => void;
-  onAddMock: () => void;
   onCopyLink: () => void;
   shareUrl: string;
 }
@@ -17,7 +16,6 @@ export function RoomWaiting({
   self,
   entryMessage,
   onStart,
-  onAddMock,
   onCopyLink,
   shareUrl,
 }: Props) {
@@ -76,9 +74,6 @@ export function RoomWaiting({
               至少需要 2 名玩家
             </p>
           ) : null}
-          <Button className="btn--block" variant="secondary" onClick={onAddMock}>
-            + 添加测试玩家
-          </Button>
         </div>
       ) : null}
 

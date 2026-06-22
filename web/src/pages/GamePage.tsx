@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getAvatarEmoji } from '@shared/constants/avatars';
 import { useRoomSync } from '@shared/hooks/useRoomSync';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
+import { BackToLobbyLink } from '../components/BackToLobbyLink';
 import { HostSortPanel } from '../components/HostSortPanel';
+import { SortWatchPanel } from '../components/SortWatchPanel';
 import { Button } from '../components/Button';
 import { clearSession, getSessionUserId } from '../lib/storage';
 
@@ -76,9 +78,7 @@ export default function GamePage() {
           <span className="hint" style={{ margin: 0 }}>
             ROOM {room.roomId}
           </span>
-          <Link to="/" className="hint" style={{ margin: 0 }}>
-            退回大厅
-          </Link>
+          <BackToLobbyLink onLeave={handleLeave} />
         </div>
 
         {isPlayer && (
@@ -127,16 +127,10 @@ export default function GamePage() {
           </div>
         )}
 
-        {!isHost && isPlayer && (
-          <div className="panel panel--muted">
-            <p className="wait-text">房主正在努力排序中…</p>
-          </div>
-        )}
-
-        {isSpectator && (
-          <div className="panel panel--muted">
-            <p className="wait-text">游戏进行中，请观战</p>
-          </div>
+        {!isHost && (isPlayer || isSpectator) && (
+          <p className="game-hint" style={{ marginBottom: 0 }}>
+            {isPlayer ? '房主正在排序，下方为实时顺序' : '观战中 · 下方为房主当前排序'}
+          </p>
         )}
 
         {submitError ? <p className="toast-error">{submitError}</p> : null}
@@ -148,7 +142,7 @@ export default function GamePage() {
         )}
       </div>
 
-      {isHost && (
+      {isHost ? (
         <div className="sort-dock">
           <HostSortPanel
             room={room}
@@ -156,6 +150,10 @@ export default function GamePage() {
             onMoveSort={updateSortOrder}
             onSubmitSort={handleSubmitSort}
           />
+        </div>
+      ) : (
+        <div className="sort-dock">
+          <SortWatchPanel room={room} sortOrder={room.sortOrder} />
         </div>
       )}
     </main>
