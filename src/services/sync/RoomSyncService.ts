@@ -1,6 +1,7 @@
 import {
   CreateRoomInput,
   CreateRoomResult,
+  GameDifficulty,
   JoinRoomError,
   JoinRoomInput,
   JoinRoomResult,
@@ -15,7 +16,8 @@ export type GameActionErrorCode =
   | 'NOT_ENOUGH_PLAYERS'
   | 'INVALID_STATUS'
   | 'ROOM_NOT_FOUND'
-  | 'INVALID_SORT';
+  | 'INVALID_SORT'
+  | 'TOO_MANY_FOR_HARD';
 
 export interface GameActionError {
   code: GameActionErrorCode;
@@ -37,6 +39,7 @@ export interface RoomSyncService {
   startGame(
     roomId: string,
     userId: string,
+    difficulty?: GameDifficulty,
   ): Promise<Room | GameActionError>;
   updateSortOrder(
     roomId: string,

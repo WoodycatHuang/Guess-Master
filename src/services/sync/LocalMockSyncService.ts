@@ -4,6 +4,7 @@ import {
   JoinRoomError,
   JoinRoomInput,
   JoinRoomResult,
+  GameDifficulty,
   Room,
 } from '../../types/room';
 import { normalizeRoomId } from './roomKeys';
@@ -78,9 +79,10 @@ class LocalMockSyncService implements RoomSyncService {
   async startGame(
     roomId: string,
     userId: string,
+    difficulty: GameDifficulty = 'easy',
   ): Promise<Room | GameActionError> {
     const id = normalizeRoomId(roomId);
-    const result = this.engine.startGame(id, userId);
+    const result = this.engine.startGame(id, userId, difficulty);
     if (!('code' in result)) this.emitUpdate(id);
     return result;
   }

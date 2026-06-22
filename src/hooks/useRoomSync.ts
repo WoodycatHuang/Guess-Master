@@ -93,11 +93,11 @@ export function useRoomSync(activeRoomId: string | null) {
     return ok;
   }, [normalizedRoomId, self]);
 
-  const startGame = useCallback(async (): Promise<
-    Room | GameActionError | null
-  > => {
+  const startGame = useCallback(async (
+    difficulty: import('../types/room').GameDifficulty = 'easy',
+  ): Promise<Room | GameActionError | null> => {
     if (!normalizedRoomId || !self) return null;
-    const result = await roomSync.startGame(normalizedRoomId, self.id);
+    const result = await roomSync.startGame(normalizedRoomId, self.id, difficulty);
     if (!('code' in result)) setRoom(result);
     return result;
   }, [normalizedRoomId, self]);

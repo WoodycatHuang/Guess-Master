@@ -1,7 +1,8 @@
-import { MAX_PLAYERS } from '../../constants/game';
+import { canStartHardMode, MAX_PLAYERS } from '../../constants/game';
 import {
   CreateRoomInput,
   CreateRoomResult,
+  GameDifficulty,
   JoinRoomError,
   JoinRoomInput,
   JoinRoomResult,
@@ -38,6 +39,7 @@ export class RoomEngine {
     const room: Room = {
       roomId,
       status: 'waiting',
+      difficulty: null,
       topic: '',
       topicLowLabel: '',
       topicHighLabel: '',
@@ -143,7 +145,11 @@ export class RoomEngine {
     return cloneRoom(room);
   }
 
-  startGame(roomId: string, userId: string): Room | GameActionError {
+  startGame(
+    roomId: string,
+    userId: string,
+    difficulty: GameDifficulty = 'easy',
+  ): Room | GameActionError {
     const id = normalizeRoomId(roomId);
     const room = this.rooms.get(id);
     if (!room) {
@@ -161,12 +167,19 @@ export class RoomEngine {
         message: '至少需要 2 名玩家才能开始',
       };
     }
+    if (difficulty === 'hard' && !canStartHardMode(room.players.length)) {
+      return {
+        code: 'TOO_MANY_FOR_HARD',
+        message: '困难模式最多支持5人',
+      };
+    }
 
     const topic = pickRandomTopic();
+    room.difficulty = difficulty;
     room.topic = topic.title;
     room.topicLowLabel = topic.lowLabel;
     room.topicHighLabel = topic.highLabel;
-    dealCardsToPlayers(room.players);
+    dealCardsToPlayers(room.players, difficulty);
     room.sortOrder = defaultSortOrder(room);
     applySortOrder(room);
     room.status = 'gaming';

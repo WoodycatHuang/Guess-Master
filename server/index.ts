@@ -153,7 +153,11 @@ const server = http.createServer(async (req, res) => {
       'mock-guests': (roomId, body) =>
         engine.addMockGuests(roomId, Number(body.count ?? 1)),
       start: (roomId, body) =>
-        engine.startGame(roomId, String(body.userId)),
+        engine.startGame(
+          roomId,
+          String(body.userId),
+          (body.difficulty as import('../src/types/room').GameDifficulty) ?? 'easy',
+        ),
       sort: (roomId, body) =>
         engine.updateSortOrder(
           roomId,

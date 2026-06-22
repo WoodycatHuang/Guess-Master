@@ -2,12 +2,17 @@ export type UserRole = 'Host' | 'Guest' | 'Spectator';
 
 export type RoomStatus = 'waiting' | 'gaming' | 'verifying';
 
+/** easy=每人 1 张牌；hard=每人 2 张牌（不同边框色） */
+export type GameDifficulty = 'easy' | 'hard';
+
 export interface User {
   id: string;
   name: string;
   avatarId: number;
   role: UserRole;
   cardNumber: number | null;
+  /** 困难模式第二张牌 */
+  cardNumber2: number | null;
   positionIndex: number | null;
   joinedAt: number;
 }
@@ -15,6 +20,8 @@ export interface User {
 export interface Room {
   roomId: string;
   status: RoomStatus;
+  /** 本局难度，waiting 时为 null */
+  difficulty: GameDifficulty | null;
   topic: string;
   topicLowLabel: string;
   topicHighLabel: string;

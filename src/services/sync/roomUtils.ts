@@ -1,5 +1,6 @@
 import { MAX_PLAYERS } from '../../constants/game';
-import { Room, User, UserRole } from '../../types/room';
+import { GameDifficulty, Room, User, UserRole } from '../../types/room';
+import { makeSortSlot, parseSortSlot } from './sortSlots';
 
 export function generateRoomId(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -26,6 +27,7 @@ export function createUser(
     avatarId,
     role,
     cardNumber: null,
+    cardNumber2: null,
     positionIndex: null,
     joinedAt,
   };
@@ -81,9 +83,15 @@ export function findUserInRoom(
 }
 
 export function defaultSortOrder(room: Room): string[] {
-  return [...room.players]
-    .sort((a, b) => a.joinedAt - b.joinedAt)
-    .map((u) => u.id);
+  const sorted = [...room.players].sort((a, b) => a.joinedAt - b.joinedAt);
+  if (room.difficulty === 'hard') {
+    const order: string[] = [];
+    for (const user of sorted) {
+      order.push(makeSortSlot(user.id, 1), makeSortSlot(user.id, 2));
+    }
+    return order;
+  }
+  return sorted.map((u) => u.id);
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -96,21 +104,51 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 /** 为每位玩家发 1–100 互不重复的数字牌 */
-export function dealCardsToPlayers(players: User[]): void {
+export function dealCardsToPlayers(
+  players: User[],
+  difficulty: GameDifficulty = 'easy',
+): void {
+  const cardCount = difficulty === 'hard' ? players.length * 2 : players.length;
   const pool = shuffle(Array.from({ length: 100 }, (_, i) => i + 1));
+  if (cardCount > pool.length) {
+    throw new Error('牌池不足以发牌');
+  }
   players.forEach((player, index) => {
-    player.cardNumber = pool[index];
+    if (difficulty === 'hard') {
+      player.cardNumber = pool[index * 2];
+      player.cardNumber2 = pool[index * 2 + 1];
+    } else {
+      player.cardNumber = pool[index];
+      player.cardNumber2 = null;
+    }
   });
 }
 
 export function applySortOrder(room: Room): void {
-  room.sortOrder.forEach((userId, index) => {
+  room.sortOrder.forEach((token, index) => {
+    const userId =
+      room.difficulty === 'hard' ? parseSortSlot(token).userId : token;
     const player = room.players.find((u) => u.id === userId);
     if (player) player.positionIndex = index;
   });
 }
 
 export function validateSortOrder(room: Room, order: string[]): boolean {
+  if (room.difficulty === 'hard') {
+    if (order.length !== room.players.length * 2) return false;
+    const expected = new Map<string, Set<1 | 2>>();
+    for (const player of room.players) {
+      expected.set(player.id, new Set([1, 2]));
+    }
+    for (const token of order) {
+      const { userId, cardIndex } = parseSortSlot(token);
+      const slots = expected.get(userId);
+      if (!slots || !slots.has(cardIndex)) return false;
+      slots.delete(cardIndex);
+    }
+    return [...expected.values()].every((slots) => slots.size === 0);
+  }
+
   if (order.length !== room.players.length) return false;
   const playerIds = new Set(room.players.map((u) => u.id));
   const seen = new Set<string>();
@@ -122,9 +160,15 @@ export function validateSortOrder(room: Room, order: string[]): boolean {
 }
 
 export function cardNumberAtSortIndex(room: Room, index: number): number | null {
-  const userId = room.sortOrder[index];
-  if (!userId) return null;
-  return room.players.find((u) => u.id === userId)?.cardNumber ?? null;
+  const token = room.sortOrder[index];
+  if (!token) return null;
+  if (room.difficulty === 'hard') {
+    const { userId, cardIndex } = parseSortSlot(token);
+    const user = room.players.find((u) => u.id === userId);
+    if (!user) return null;
+    return cardIndex === 2 ? user.cardNumber2 : user.cardNumber;
+  }
+  return room.players.find((u) => u.id === token)?.cardNumber ?? null;
 }
 
 /** 按 Host 排序从左到右检查是否严格递增（当前 > 前一个） */
@@ -147,12 +191,14 @@ export function evaluateSortedCards(room: Room): {
 /** 「再来一局」：回到 waiting，清空本局题目与手牌 */
 export function resetRoomForNextRound(room: Room): void {
   room.status = 'waiting';
+  room.difficulty = null;
   room.topic = '';
   room.topicLowLabel = '';
   room.topicHighLabel = '';
   room.sortOrder = [];
   room.players.forEach((player) => {
     player.cardNumber = null;
+    player.cardNumber2 = null;
     player.positionIndex = null;
   });
 }
