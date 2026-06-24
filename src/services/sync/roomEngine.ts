@@ -60,6 +60,19 @@ export class RoomEngine {
       return { code: 'ROOM_NOT_FOUND', message: '房间不存在' };
     }
 
+    if (input.userId) {
+      const existing = findUserInRoom(room, input.userId);
+      if (existing) {
+        existing.user.name = input.name;
+        existing.user.avatarId = input.avatarId;
+        return {
+          room: cloneRoom(room),
+          self: { ...existing.user },
+          as: existing.list === 'spectators' ? 'spectator' : 'player',
+        };
+      }
+    }
+
     const asSpectator = isGameInProgress(room) || isRoomFull(room);
     const user = createUser(
       input.name,

@@ -113,6 +113,7 @@ const server = http.createServer(async (req, res) => {
       const body = (await readBody(req)) as {
         name: string;
         avatarId: number;
+        userId?: string;
       };
       const result = engine.joinRoom({ roomId, ...body });
       if ('code' in result) {

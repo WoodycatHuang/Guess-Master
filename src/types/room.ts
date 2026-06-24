@@ -41,6 +41,8 @@ export interface JoinRoomInput {
   roomId: string;
   name: string;
   avatarId: number;
+  /** 同房间再次加入时带上，避免重复占座 */
+  userId?: string;
 }
 
 export type JoinAs = 'player' | 'spectator';

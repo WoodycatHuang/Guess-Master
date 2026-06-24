@@ -119,7 +119,11 @@ class RemoteSyncService implements RoomSyncService {
     const result = await postJson<JoinRoomResult | JoinRoomError>(
       this.baseUrl,
       `/rooms/${id}/join`,
-      { name: input.name, avatarId: input.avatarId },
+      {
+        name: input.name,
+        avatarId: input.avatarId,
+        userId: input.userId,
+      },
     );
     if (!('code' in result) && result.room?.roomId) {
       this.notify(id, result.room);

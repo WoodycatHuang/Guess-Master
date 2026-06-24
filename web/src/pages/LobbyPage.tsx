@@ -4,8 +4,10 @@ import { useRoomSync } from '@shared/hooks/useRoomSync';
 import { isRemoteSyncEnabled, getSyncBaseUrl } from '@shared/services/sync';
 import { pingSyncServer } from '@shared/services/sync/RemoteSyncService';
 import { AvatarGrid } from '../components/AvatarGrid';
+import { BrandHeader } from '../components/BrandHeader';
 import { Button } from '../components/Button';
 import { loadProfile, persistSession, saveProfile } from '../lib/storage';
+import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 
 export default function LobbyPage() {
   const navigate = useNavigate();
@@ -79,9 +81,18 @@ export default function LobbyPage() {
     setError('');
     setBusy(true);
     try {
+      const roomId = normalizeRoomId(roomIdInput.trim());
+      const stored = loadProfile();
+      const userId =
+        stored.userId &&
+        stored.roomId &&
+        normalizeRoomId(stored.roomId) === roomId
+          ? stored.userId
+          : undefined;
       const result = await joinRoom({
         ...profile(),
-        roomId: roomIdInput.trim(),
+        roomId,
+        userId,
       });
       if ('code' in result) {
         setError(result.message);
@@ -97,10 +108,7 @@ export default function LobbyPage() {
 
   return (
     <main className="page">
-      <header className="logo-block">
-        <h1 className="logo-title">猜测大师</h1>
-        <p className="logo-sub">Guess Master</p>
-      </header>
+      <BrandHeader />
 
       <div className="panel">
         {error ? <div className="toast-error">{error}</div> : null}
