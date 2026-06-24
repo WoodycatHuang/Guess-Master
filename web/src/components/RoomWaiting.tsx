@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getAvatarEmoji } from '@shared/constants/avatars';
 import type { Room, User } from '@shared/types/room';
 import { Button } from './Button';
@@ -8,7 +9,7 @@ interface Props {
   entryMessage?: string;
   onStart: () => void;
   onCopyLink: () => void;
-  shareUrl: string;
+  onLeave: () => void;
 }
 
 export function RoomWaiting({
@@ -17,13 +18,22 @@ export function RoomWaiting({
   entryMessage,
   onStart,
   onCopyLink,
-  shareUrl,
+  onLeave,
 }: Props) {
   const isHost = self.role === 'Host';
   const isSpectator = self.role === 'Spectator';
   const canStart = room.players.length >= 2;
+  const [needPlayersOpen, setNeedPlayersOpen] = useState(false);
 
   const sortedPlayers = [...room.players].sort((a, b) => a.joinedAt - b.joinedAt);
+
+  const handleStartClick = () => {
+    if (!canStart) {
+      setNeedPlayersOpen(true);
+      return;
+    }
+    onStart();
+  };
 
   return (
     <>
@@ -59,21 +69,44 @@ export function RoomWaiting({
         ))}
       </div>
 
-      <Button className="btn--block" variant="secondary" onClick={onCopyLink}>
-        复制邀请链接
-      </Button>
-      <p className="hint share-url">{shareUrl}</p>
+      <div className="room-action-stack">
+        <Button variant="secondary" onClick={onCopyLink}>
+          复制邀请链接
+        </Button>
 
-      {isHost ? (
-        <div className="host-actions">
-          <Button className="btn--block" disabled={!canStart} onClick={onStart}>
+        {isHost ? (
+          <Button
+            className={canStart ? '' : 'btn--looks-disabled'}
+            onClick={handleStartClick}
+          >
             开始游戏
           </Button>
-          {!canStart ? (
-            <p className="hint" style={{ textAlign: 'center' }}>
-              至少需要 2 名玩家
+        ) : null}
+
+        <Button variant="secondary" onClick={onLeave}>
+          离开房间
+        </Button>
+      </div>
+
+      {needPlayersOpen ? (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="need-players-title"
+          onClick={() => setNeedPlayersOpen(false)}
+        >
+          <div className="modal panel" onClick={(e) => e.stopPropagation()}>
+            <h2 id="need-players-title" className="modal-title">
+              无法开始
+            </h2>
+            <p className="hint" style={{ marginBottom: 16, textAlign: 'center' }}>
+              至少需要 2 名玩家才能开始游戏
             </p>
-          ) : null}
+            <Button className="btn--block" onClick={() => setNeedPlayersOpen(false)}>
+              知道了
+            </Button>
+          </div>
         </div>
       ) : null}
 

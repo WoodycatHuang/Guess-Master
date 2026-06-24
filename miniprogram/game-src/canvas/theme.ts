@@ -6,6 +6,10 @@ export const theme = {
   greenLight: '#39FF14',
   greenDark: '#1B5E20',
   greenDim: '#2BC410',
+  /** 困难模式：第一张牌边框 */
+  cardPrimary: '#39FF14',
+  /** 困难模式：第二张牌边框 */
+  cardSecondary: '#00D4FF',
   gray: '#8B9B8A',
   muted: '#4A5249',
   border: '#1E3A1A',

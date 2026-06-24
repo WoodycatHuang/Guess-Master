@@ -1,6 +1,6 @@
 import { fonts, theme } from './theme';
 import { getContentTop } from './screen';
-import { drawLabel, drawPanel, type Rect } from './ui';
+import { drawButton, drawLabel, drawPanel, type ButtonSpec, type Rect } from './ui';
 
 /** 与大厅头像选择格一致 */
 export const AVATAR_CELL_SIZE = 56;
@@ -233,9 +233,19 @@ export function drawFlipRevealCard(
     flipProgress: number;
     cracked: boolean;
     crackProgress: number;
+    borderColor?: string;
   },
 ): void {
-  const { index, avatarEmoji, name, cardNumber, flipProgress, cracked, crackProgress } = opts;
+  const {
+    index,
+    avatarEmoji,
+    name,
+    cardNumber,
+    flipProgress,
+    cracked,
+    crackProgress,
+    borderColor,
+  } = opts;
   const flipT = easeOutCubic(clamp(flipProgress, 0, 1));
   const isRevealing = flipProgress > 0 && flipProgress < 1;
   const isRevealed = flipProgress >= 1;
@@ -267,34 +277,18 @@ export function drawFlipRevealCard(
 
   if (!isRevealing && !isRevealed) {
     ctx.scale(popScale, popScale);
-    drawCardFace(ctx, rect, 'back', avatarEmoji, name, cardNumber, false);
+    drawCardFace(ctx, rect, 'back', avatarEmoji, name, cardNumber, false, borderColor);
   } else if (isRevealed) {
     ctx.scale(1, 1);
-    drawCardFace(ctx, rect, 'front', avatarEmoji, name, cardNumber, cracked);
+    drawCardFace(ctx, rect, 'front', avatarEmoji, name, cardNumber, cracked, borderColor);
   } else if (flipT < 0.5) {
     const sx = Math.max(0.04, (1 - flipT * 2) * popScale);
     ctx.scale(sx, popScale);
-    drawCardFace(ctx, rect, 'back', avatarEmoji, name, cardNumber, false);
+    drawCardFace(ctx, rect, 'back', avatarEmoji, name, cardNumber, false, borderColor);
   } else {
     const sx = Math.max(0.04, (flipT - 0.5) * 2 * popScale);
     ctx.scale(sx, popScale);
-    drawCardFace(ctx, rect, 'front', avatarEmoji, name, cardNumber, cracked);
-  }
-
-  if (cracked && isRevealed) {
-    const pulse = crackProgress < 1 ? 1 - crackProgress * 0.65 : 0.35;
-    ctx.globalAlpha = pulse;
-    ctx.fillStyle = 'rgba(255, 0, 85, 0.3)';
-    ctx.fillRect(-rect.w / 2, -rect.h / 2, rect.w, rect.h);
-    ctx.globalAlpha = 1;
-    ctx.font = fonts.small;
-    ctx.fillStyle = theme.fail;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.save();
-    ctx.rotate(-0.21);
-    ctx.fillText('裂开', 0, 0);
-    ctx.restore();
+    drawCardFace(ctx, rect, 'front', avatarEmoji, name, cardNumber, cracked, borderColor);
   }
 
   ctx.restore();
@@ -308,12 +302,15 @@ function drawCardFace(
   name: string,
   cardNumber: number,
   cracked: boolean,
+  borderColor?: string,
 ): void {
   const hw = rect.w / 2;
   const hh = rect.h / 2;
 
   ctx.fillStyle = face === 'back' ? theme.bgInput : '#141622';
-  ctx.strokeStyle = cracked ? theme.fail : face === 'front' ? theme.green : theme.border;
+  ctx.strokeStyle = cracked
+    ? theme.fail
+    : borderColor ?? (face === 'front' ? theme.green : theme.border);
   ctx.lineWidth = cracked || face === 'front' ? 3 : 2;
   ctx.fillRect(-hw, -hh, rect.w, rect.h);
   ctx.strokeRect(-hw, -hh, rect.w, rect.h);
@@ -322,7 +319,8 @@ function drawCardFace(
   ctx.textBaseline = 'middle';
 
   if (face === 'back') {
-    ctx.font = fonts.emoji;
+    const emojiSize = Math.max(22, Math.round(rect.w * 0.36));
+    ctx.font = `${emojiSize}px sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(avatarEmoji, 0, -14);
     ctx.font = fonts.small;
@@ -333,12 +331,8 @@ function drawCardFace(
   }
 
   ctx.font = 'bold 28px monospace';
-  ctx.fillStyle = theme.green;
-  ctx.fillText(String(cardNumber), 0, cracked ? -8 : 0);
-  if (cracked) {
-    ctx.font = fonts.emoji;
-    ctx.fillText('💥', 0, 24);
-  }
+  ctx.fillStyle = cracked ? theme.fail : theme.green;
+  ctx.fillText(String(cardNumber), 0, 0);
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -354,9 +348,9 @@ export function drawPlayerChip(
   rect: Rect,
   avatarEmoji: string,
   name: string,
-  opts?: { active?: boolean; cracked?: boolean; footer?: string },
+  opts?: { active?: boolean; cracked?: boolean; footer?: string; borderColor?: string },
 ): void {
-  ctx.fillStyle = opts?.active ? '#1A2A18' : theme.bgInput;
+  ctx.fillStyle = opts?.active ? '#1A2A18' : theme.bgPanel;
   ctx.strokeStyle = opts?.cracked
     ? theme.fail
     : opts?.active
@@ -366,20 +360,158 @@ export function drawPlayerChip(
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
 
-  ctx.font = fonts.emoji;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(avatarEmoji, rect.x + rect.w / 2, rect.y + rect.h * 0.38);
+  const cell = Math.min(AVATAR_CELL_SIZE, rect.w - 8, rect.h - (opts?.footer ? 44 : 26));
+  const ax = rect.x + (rect.w - cell) / 2;
+  const ay = rect.y + 6;
+
+  drawAvatarCell(ctx, ax, ay, cell, avatarEmoji, {
+    highlighted: Boolean(opts?.active),
+  });
+
+  if (opts?.borderColor && !opts?.cracked) {
+    ctx.strokeStyle = opts.borderColor;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(ax, ay, cell, cell);
+  }
+
+  if (opts?.cracked) {
+    ctx.strokeStyle = theme.fail;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(ax, ay, cell, cell);
+  }
 
   ctx.font = fonts.small;
   ctx.fillStyle = theme.gray;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
   const displayName = name.length > 5 ? `${name.slice(0, 4)}…` : name;
-  ctx.fillText(displayName, rect.x + rect.w / 2, rect.y + rect.h * 0.68);
+  ctx.fillText(displayName, rect.x + rect.w / 2, ay + cell + 6);
 
   if (opts?.footer) {
     ctx.font = opts.footer.length > 3 ? fonts.title : fonts.body;
     ctx.fillStyle = opts.cracked ? theme.fail : theme.green;
-    ctx.fillText(opts.footer, rect.x + rect.w / 2, rect.y + rect.h * 0.88);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(opts.footer, rect.x + rect.w / 2, rect.y + rect.h - 12);
   }
+}
+
+export function drawNumberCard(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  number: number,
+  borderColor: string,
+): void {
+  ctx.fillStyle = theme.bgInput;
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 3;
+  ctx.fillRect(x, y, size, size);
+  ctx.strokeRect(x, y, size, size);
+  ctx.font = `bold ${Math.max(14, Math.round(size * 0.38))}px monospace`;
+  ctx.fillStyle = theme.green;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), x + size / 2, y + size / 2);
+}
+
+export function drawOwnedCardPair(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  topY: number,
+  card1: number,
+  card2: number,
+  cellSize = AVATAR_CELL_SIZE,
+): number {
+  const gap = 12;
+  const totalW = cellSize * 2 + gap;
+  let x = centerX - totalW / 2;
+  drawNumberCard(ctx, x, topY, cellSize, card1, theme.cardPrimary);
+  x += cellSize + gap;
+  drawNumberCard(ctx, x, topY, cellSize, card2, theme.cardSecondary);
+  return topY + cellSize;
+}
+
+export interface DifficultyPickerLayout {
+  easy: Rect;
+  hard: Rect;
+  cancel: Rect;
+}
+
+export function drawDifficultyPicker(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  opts: { hardEnabled: boolean },
+): DifficultyPickerLayout {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillRect(0, 0, width, height);
+
+  const pad = theme.pad;
+  const panelW = width - pad * 2;
+  const panelH = opts.hardEnabled ? 248 : 272;
+  const panel: Rect = {
+    x: pad,
+    y: Math.round((height - panelH) / 2),
+    w: panelW,
+    h: panelH,
+  };
+  drawPanel(ctx, panel);
+
+  drawLabel(
+    ctx,
+    '选择难度',
+    panel.x + panel.w / 2,
+    panel.y + 16,
+    theme.green,
+    fonts.title,
+    'center',
+  );
+
+  const innerX = panel.x + 16;
+  const innerW = panel.w - 32;
+  const btnH = 48;
+  let btnY = panel.y + 56;
+
+  const easy: Rect = { x: innerX, y: btnY, w: innerW, h: btnH };
+  drawButton(ctx, {
+    id: 'easy',
+    label: '简单模式 · 每人1张牌',
+    ...easy,
+    variant: 'primary',
+  });
+
+  btnY += btnH + 12;
+  const hard: Rect = { x: innerX, y: btnY, w: innerW, h: btnH };
+  drawButton(ctx, {
+    id: 'hard',
+    label: opts.hardEnabled ? '困难模式 · 每人2张牌' : '困难模式（最多5人）',
+    ...hard,
+    variant: 'secondary',
+    disabled: !opts.hardEnabled,
+  });
+
+  if (!opts.hardEnabled) {
+    drawLabel(
+      ctx,
+      '6人及以上无法开启困难模式',
+      panel.x + panel.w / 2,
+      btnY + btnH + 8,
+      theme.muted,
+      fonts.small,
+      'center',
+    );
+    btnY += 20;
+  }
+
+  btnY += btnH + 12;
+  const cancel: Rect = { x: innerX, y: btnY, w: innerW, h: btnH };
+  drawButton(ctx, {
+    id: 'cancel',
+    label: '取消',
+    ...cancel,
+    variant: 'secondary',
+  });
+
+  return { easy, hard, cancel };
 }

@@ -11,17 +11,21 @@ cd ~/Guess-Master
 npm run miniprogram:dev
 ```
 
-看到 `[minigame] bundled dist/game.js` 后**不要关窗口**。
+看到 `[minigame] bundled game.js` 后**不要关窗口**。
 
 ### ② 微信开发者工具
 
-- 导入目录：**`Guess-Master/miniprogram`**
+- 导入目录：**`Guess-Master/miniprogram`**（必须这一层，**不要**导入 `dist/`）
 - AppID：`wxb94cbaa68a975d82`
 - **详情 → 本地设置**：开发阶段勾选「不校验合法域名、web-view…」
 
 ### ③ 编译
 
-点 **普通编译** 或 **Command + B**。应看到大厅（GUESS MASTER + 创建/加入房间）。
+点 **普通编译** 或 **Command + B**。
+
+**正常时**：Console 第一行应有 `[GuessMaster] game.js loaded`，随后进入大厅。
+
+**若全黑且 Console 空白**：说明 `game.js` 没跑起来 — 检查导入目录是否为 `miniprogram`、是否先执行了 `npm run miniprogram:build`。
 
 ## 当前进度
 

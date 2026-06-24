@@ -30,7 +30,6 @@ export function FlipRevealCard({
 }: Props) {
   const flip = useSharedValue(0);
   const crackShake = useSharedValue(0);
-  const crackPulse = useSharedValue(0);
 
   useEffect(() => {
     if (!revealed) return;
@@ -42,12 +41,8 @@ export function FlipRevealCard({
         withTiming(1, { duration: 70 }),
         withTiming(0, { duration: 70 }),
       );
-      crackPulse.value = withSequence(
-        withTiming(1, { duration: 120 }),
-        withTiming(0.35, { duration: 200 }),
-      );
     }
-  }, [revealed, cracked, flip, crackShake, crackPulse]);
+  }, [revealed, cracked, flip, crackShake]);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [
@@ -55,10 +50,6 @@ export function FlipRevealCard({
       { translateX: crackShake.value * 8 },
       { rotate: `${crackShake.value * 4}deg` },
     ],
-  }));
-
-  const crackOverlayStyle = useAnimatedStyle(() => ({
-    opacity: crackPulse.value,
   }));
 
   return (
@@ -88,19 +79,15 @@ export function FlipRevealCard({
           </View>
         ) : (
           <View style={styles.front}>
-            <PixelText variant="titleLatin" tone="primary" style={styles.number}>
+            <PixelText
+              variant="titleLatin"
+              tone={cracked ? 'fail' : 'primary'}
+              style={styles.number}
+            >
               {cardNumber}
             </PixelText>
-            {cracked ? <Text style={styles.crackEmoji}>💥</Text> : null}
           </View>
         )}
-        {cracked && revealed ? (
-          <Animated.View style={[styles.crackOverlay, crackOverlayStyle]}>
-            <PixelText variant="captionCn" tone="fail" style={styles.crackText}>
-              裂开
-            </PixelText>
-          </Animated.View>
-        ) : null}
       </Animated.View>
     </View>
   );
@@ -150,18 +137,5 @@ const styles = StyleSheet.create({
   number: {
     fontSize: 28,
     lineHeight: 34,
-  },
-  crackEmoji: {
-    fontSize: 16,
-    marginTop: 2,
-  },
-  crackOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 0, 85, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  crackText: {
-    transform: [{ rotate: '-12deg' }],
   },
 });

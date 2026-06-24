@@ -146,12 +146,13 @@ class RemoteSyncService implements RoomSyncService {
   async startGame(
     roomId: string,
     userId: string,
+    difficulty: import('@shared/types/room').GameDifficulty = 'easy',
   ): Promise<Room | GameActionError> {
     const id = normalizeRoomId(roomId);
     const result = await postJson<Room | GameActionError>(
       this.baseUrl,
       `/rooms/${id}/start`,
-      { userId },
+      { userId, difficulty },
     );
     if (!('code' in result)) this.notify(id, result);
     return result;

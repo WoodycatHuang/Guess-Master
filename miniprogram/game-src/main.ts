@@ -1,14 +1,35 @@
 import { getScreen, initScreen } from './canvas/screen';
 import { readLaunchQuery, roomIdFromQuery } from './lib/launch';
+import {
+  initPaintLoop,
+  pulsePaint,
+  requestPaint,
+  stopPaintLoop,
+} from './lib/renderScheduler';
+import { getGmRuntime, stopRenderLoop, unbindTouchHandlers } from './lib/runtime';
 import { roomSync } from './lib/sync';
-import { onGameTouchEnd, onGameTouchMove, onGameTouchStart, renderGame, resetGameScene } from './scenes/game';
+import {
+  isGameDragging,
+  onGameTouchEnd,
+  onGameTouchMove,
+  onGameTouchStart,
+  renderGame,
+  resetGameScene,
+} from './scenes/game';
 import { onLobbyTouch, renderLobby } from './scenes/lobby';
-import { onResultTouch, renderResult, resetResultScene } from './scenes/result';
+import {
+  isResultAnimating,
+  onResultTouch,
+  renderResult,
+  resetResultScene,
+} from './scenes/result';
 import { getRoomShareConfig, getRoomState, onRoomTouch, renderRoom } from './scenes/room';
 import { bootLobby, getScene } from './scenes/router';
 
-let rafId = 0;
+const LOG = '[GuessMaster]';
+
 let prevRoomStatus: string | null = null;
+let lifecycleBound = false;
 
 function getRoomStatus(): string | null {
   if (getScene() !== 'room') return null;
@@ -48,32 +69,37 @@ function render(): void {
   } else {
     renderRoom();
   }
-}
 
-function loop(): void {
-  render();
-  rafId = requestAnimationFrame(loop);
+  if (isGameDragging()) {
+    pulsePaint(32);
+  } else if (isResultAnimating()) {
+    pulsePaint(32);
+  }
 }
 
 function bindTouch(): void {
-  wx.onTouchStart((e) => {
+  unbindTouchHandlers();
+
+  const onStart = (e: WechatMinigame.TouchEvent) => {
     const t = e.touches?.[0];
     if (!t) return;
     if (getScene() === 'room' && getRoomStatus() === 'gaming') {
       onGameTouchStart(t.clientX, t.clientY);
+      requestPaint();
     }
-  });
+  };
 
-  wx.onTouchMove((e) => {
+  const onMove = (e: WechatMinigame.TouchEvent) => {
     const t = e.touches?.[0];
     if (!t) return;
     if (getScene() === 'room' && getRoomStatus() === 'gaming') {
       onGameTouchMove(t.clientX, t.clientY);
+      if (isGameDragging()) requestPaint();
     }
-  });
+  };
 
-  wx.onTouchEnd((e) => {
-    const t = e.changedTouches?.[0] ?? e.touches[0];
+  const onEnd = (e: WechatMinigame.TouchEvent) => {
+    const t = e.changedTouches?.[0] ?? e.touches?.[0];
     if (!t) return;
     const x = t.clientX;
     const y = t.clientY;
@@ -91,34 +117,80 @@ function bindTouch(): void {
     } else {
       void onRoomTouch(x, y);
     }
-  });
+    requestPaint();
+  };
+
+  wx.onTouchStart(onStart);
+  wx.onTouchMove(onMove);
+  wx.onTouchEnd(onEnd);
+  getGmRuntime().touchHandlers = { start: onStart, move: onMove, end: onEnd };
 }
 
 function bindShare(): void {
-  wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage'] });
+  const rt = getGmRuntime();
+  if (rt.shareBound) return;
 
-  wx.onShareAppMessage(() => {
-    if (getScene() === 'room') {
-      return getRoomShareConfig();
-    }
-    return {
-      title: '来一起玩脑波专家！',
-      query: '',
-      imageUrl: 'assets/share-500x400.png',
-    };
-  });
+  try {
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage'] });
+    wx.onShareAppMessage(() => {
+      if (getScene() === 'room') {
+        return getRoomShareConfig();
+      }
+      return {
+        title: '来一起玩脑波专家！',
+        query: '',
+        imageUrl: 'assets/share-500x400.png',
+      };
+    });
+    rt.shareBound = true;
+  } catch (err) {
+    console.warn(`${LOG} share skipped`, err);
+  }
 }
 
-export function startGame(): void {
+function bindLifecycle(): void {
+  if (lifecycleBound) return;
+  lifecycleBound = true;
+
+  wx.onHide(() => {
+    stopPaintLoop();
+  });
+
+  wx.onShow(() => {
+    requestPaint();
+  });
+
+  if (typeof wx.onMemoryWarning === 'function') {
+    wx.onMemoryWarning((res) => {
+      console.warn(`${LOG} memory warning level=${res?.level ?? '?'}`);
+      stopPaintLoop();
+      setTimeout(() => requestPaint(), 1000);
+    });
+  }
+}
+
+function startGame(): void {
+  stopRenderLoop();
+  stopPaintLoop();
+  unbindTouchHandlers();
+
+  const rt = getGmRuntime();
+  rt.bootVersion += 1;
+  const version = rt.bootVersion;
+
+  console.log(`${LOG} boot v${version} (on-demand render)`);
   initScreen();
+  initPaintLoop(render);
   bindTouch();
   bindShare();
+  bindLifecycle();
 
   const launchQuery = readLaunchQuery();
   const prefilledRoomId = roomIdFromQuery(launchQuery);
   bootLobby(prefilledRoomId);
 
-  loop();
+  requestPaint();
+  console.log(`${LOG} ready v${version}`);
 }
 
 startGame();

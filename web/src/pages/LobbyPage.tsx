@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRoomSync } from '@shared/hooks/useRoomSync';
-import { isRemoteSyncEnabled, getSyncBaseUrl } from '@shared/services/sync';
-import { pingSyncServer } from '@shared/services/sync/RemoteSyncService';
+import { roomSync } from '@shared/services/sync';
+import { findExistingMember } from '@shared/services/sync/memberLookup';
+import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 import { AvatarGrid } from '../components/AvatarGrid';
 import { BrandHeader } from '../components/BrandHeader';
 import { Button } from '../components/Button';
 import { loadProfile, persistSession, saveProfile } from '../lib/storage';
-import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 
 export default function LobbyPage() {
   const navigate = useNavigate();
@@ -19,16 +19,7 @@ export default function LobbyPage() {
   const [roomIdInput, setRoomIdInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [syncOk, setSyncOk] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const url = getSyncBaseUrl();
-    if (!url) {
-      setSyncOk(false);
-      return;
-    }
-    void pingSyncServer(url).then(setSyncOk);
-  }, []);
+  const linkJoinStarted = useRef(false);
 
   useEffect(() => {
     const profile = loadProfile();
@@ -37,6 +28,53 @@ export default function LobbyPage() {
     const fromLink = searchParams.get('room');
     if (fromLink) setRoomIdInput(fromLink.toUpperCase());
   }, [searchParams]);
+
+  /** 邀请链接：老玩家回房间，新玩家自动加入（无需再点「加入」） */
+  useEffect(() => {
+    const fromLink = searchParams.get('room');
+    if (!fromLink || !nickname.trim() || linkJoinStarted.current) return;
+
+    const roomId = normalizeRoomId(fromLink);
+    const stored = loadProfile();
+    linkJoinStarted.current = true;
+
+    void (async () => {
+      try {
+        const snapshot = await roomSync.fetchRoom(roomId);
+        if (!snapshot) {
+          setError('房间不存在或已解散');
+          linkJoinStarted.current = false;
+          return;
+        }
+
+        const existing = findExistingMember(snapshot, nickname, stored.userId);
+        if (existing) {
+          enterRoom(roomId, existing.id);
+          return;
+        }
+
+        setBusy(true);
+        setError('');
+        const p = profile();
+        const result = await joinRoom({
+          ...p,
+          roomId,
+          userId: stored.userId,
+        });
+        if ('code' in result) {
+          setError(result.message);
+          linkJoinStarted.current = false;
+          return;
+        }
+        enterRoom(result.room.roomId, result.self.id, result.message);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '加入失败');
+        linkJoinStarted.current = false;
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [searchParams, nickname, avatarId, navigate, joinRoom]);
 
   const profile = () => {
     const p = { name: nickname.trim(), avatarId };
@@ -83,16 +121,21 @@ export default function LobbyPage() {
     try {
       const roomId = normalizeRoomId(roomIdInput.trim());
       const stored = loadProfile();
-      const userId =
-        stored.userId &&
-        stored.roomId &&
-        normalizeRoomId(stored.roomId) === roomId
-          ? stored.userId
-          : undefined;
+      const p = profile();
+
+      const snapshot = await roomSync.fetchRoom(roomId);
+      if (snapshot) {
+        const existing = findExistingMember(snapshot, p.name, stored.userId);
+        if (existing) {
+          enterRoom(roomId, existing.id);
+          return;
+        }
+      }
+
       const result = await joinRoom({
-        ...profile(),
+        ...p,
         roomId,
-        userId,
+        userId: stored.userId,
       });
       if ('code' in result) {
         setError(result.message);
@@ -155,16 +198,6 @@ export default function LobbyPage() {
           {busy ? '创建中…' : '创建房间'}
         </Button>
       </div>
-
-      <p className="hint hint--ok">
-        {isRemoteSyncEnabled()
-          ? syncOk === true
-            ? `联机正常 · ${getSyncBaseUrl()}`
-            : syncOk === false
-              ? `联机不可用 · 请检查 ${getSyncBaseUrl()}（本地需 npm run sync-server）`
-              : '正在检测联机…'
-          : '未配置联机地址，请检查 web/.env.development 中的 VITE_SYNC_URL'}
-      </p>
     </main>
   );
 }

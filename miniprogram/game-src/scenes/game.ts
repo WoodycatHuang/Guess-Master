@@ -1,6 +1,14 @@
 import type { Room, User } from '@shared/types/room';
 import { getAvatarEmoji } from '@shared/constants/avatars';
-import { drawPlayerChip, drawRoomHeader, drawTopicCard } from '../canvas/drawCommon';
+import { parseSortSlot, sortSlotBorderColor } from '@shared/services/sync/sortSlots';
+import {
+  AVATAR_CELL_GAP,
+  AVATAR_CELL_SIZE,
+  drawOwnedCardPair,
+  drawPlayerChip,
+  drawRoomHeader,
+  drawTopicCard,
+} from '../canvas/drawCommon';
 import { drawBackground, getBackButtonRect, getScreen } from '../canvas/screen';
 import { fonts, theme } from '../canvas/theme';
 import { drawButton, drawLabel, drawPanel, hit, type ButtonSpec, type Rect } from '../canvas/ui';
@@ -10,9 +18,10 @@ import { goLobby } from './router';
 import { getRoomState } from './roomState';
 import { teardownRoom } from './room';
 
-const CELL_W = 72;
-const CELL_H = 92;
-const CELL_GAP = 8;
+const CELL_W = AVATAR_CELL_SIZE;
+const CELL_H = AVATAR_CELL_SIZE + 30;
+const CELL_GAP = AVATAR_CELL_GAP;
+const SORT_MAX_PER_ROW = 5;
 const LONG_PRESS_MS = 120;
 const DRAG_THRESHOLD = 8;
 
@@ -34,8 +43,13 @@ function findPlayer(room: Room, userId: string): User | undefined {
   return room.players.find((u) => u.id === userId);
 }
 
+function resolveSortToken(room: Room, token: string): User | undefined {
+  const userId = room.difficulty === 'hard' ? parseSortSlot(token).userId : token;
+  return findPlayer(room, userId);
+}
+
 function syncSortItems(room: Room): void {
-  const key = room.players.map((p) => p.id).join('|');
+  const key = `${room.difficulty ?? 'easy'}|${room.sortOrder.join(',')}`;
   if (key !== playersKey) {
     playersKey = key;
     sortItems = [...room.sortOrder];
@@ -44,10 +58,11 @@ function syncSortItems(room: Room): void {
 
 function cellRectAt(index: number): Rect {
   const pad = theme.pad;
-  const x = pad + index * (CELL_W + CELL_GAP);
+  const col = index % SORT_MAX_PER_ROW;
+  const row = Math.floor(index / SORT_MAX_PER_ROW);
   return {
-    x,
-    y: sortStripRect.y,
+    x: pad + col * (CELL_W + CELL_GAP),
+    y: sortStripRect.y + row * (CELL_H + CELL_GAP),
     w: CELL_W,
     h: CELL_H,
   };
@@ -90,7 +105,9 @@ export function renderGame(): void {
   const isHost = self.id === room.hostId;
   const isPlayer = self.role === 'Host' || self.role === 'Guest';
   const isSpectator = self.role === 'Spectator';
-  const myCard = findPlayer(room, self.id)?.cardNumber ?? null;
+  const myPlayer = findPlayer(room, self.id);
+  const myCard = myPlayer?.cardNumber ?? null;
+  const myCard2 = myPlayer?.cardNumber2 ?? null;
 
   if (isPlayer) {
     drawLabel(
@@ -108,16 +125,25 @@ export function renderGame(): void {
   y = drawTopicCard(ctx, pad, y, contentW, room.topic, room.topicLowLabel, room.topicHighLabel) + 16;
 
   if (isPlayer && myCard !== null) {
-    const cardBox: Rect = { x: pad, y, w: contentW, h: 120 };
-    drawPanel(ctx, cardBox);
-    drawLabel(ctx, 'YOUR CARD', width / 2, y + 12, theme.gray, fonts.small, 'center');
-    ctx.font = 'bold 48px monospace';
-    ctx.fillStyle = theme.green;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(myCard), width / 2, y + 58);
-    drawLabel(ctx, '只有你能看到这张牌', width / 2, y + 92, theme.muted, fonts.small, 'center');
-    y += 132;
+    if (room.difficulty === 'hard' && myCard2 !== null) {
+      const cardBox: Rect = { x: pad, y, w: contentW, h: 132 };
+      drawPanel(ctx, cardBox);
+      drawLabel(ctx, 'YOUR CARDS', width / 2, y + 12, theme.gray, fonts.small, 'center');
+      drawOwnedCardPair(ctx, width / 2, y + 36, myCard, myCard2);
+      drawLabel(ctx, '只有你能看到这两张牌', width / 2, y + 108, theme.muted, fonts.small, 'center');
+      y += 144;
+    } else {
+      const cardBox: Rect = { x: pad, y, w: contentW, h: 120 };
+      drawPanel(ctx, cardBox);
+      drawLabel(ctx, 'YOUR CARD', width / 2, y + 12, theme.gray, fonts.small, 'center');
+      ctx.font = 'bold 48px monospace';
+      ctx.fillStyle = theme.green;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(myCard), width / 2, y + 58);
+      drawLabel(ctx, '只有你能看到这张牌', width / 2, y + 92, theme.muted, fonts.small, 'center');
+      y += 132;
+    }
   }
 
   if (!isHost && isPlayer) {
@@ -134,7 +160,9 @@ export function renderGame(): void {
   }
 
   if (isHost) {
-    const dockTop = height - 248;
+    const sortRows = Math.max(1, Math.ceil(sortItems.length / SORT_MAX_PER_ROW));
+    const sortStripH = sortRows * CELL_H + (sortRows - 1) * CELL_GAP;
+    const dockTop = height - (220 + sortStripH);
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0, dockTop - 8, width, height - dockTop + 8);
     ctx.strokeStyle = theme.border;
@@ -149,7 +177,9 @@ export function renderGame(): void {
     dy += 28;
     drawLabel(
       ctx,
-      '按手牌数字从小到大，从左到右排列。长按头像拖动。',
+      room.difficulty === 'hard'
+        ? '按手牌数字从小到大排列。每人两张牌（绿/青边框）都要参与排序。'
+        : '按手牌数字从小到大，从左到右排列。长按头像拖动。',
       pad,
       dy,
       theme.muted,
@@ -157,18 +187,25 @@ export function renderGame(): void {
     );
     dy += 24;
 
-    sortStripRect = { x: pad, y: dy, w: contentW, h: CELL_H };
+    sortStripRect = { x: pad, y: dy, w: contentW, h: sortStripH };
     cellRects = sortItems.map((_, i) => cellRectAt(i));
 
-    sortItems.forEach((userId, index) => {
+    sortItems.forEach((token, index) => {
       if (drag?.fromIndex === index) return;
-      const user = findPlayer(room, userId);
+      const user = resolveSortToken(room, token);
       if (!user) return;
-      drawPlayerChip(ctx, cellRects[index], getAvatarEmoji(user.avatarId), user.name);
+      const borderColor =
+        room.difficulty === 'hard'
+          ? sortSlotBorderColor(parseSortSlot(token).cardIndex)
+          : undefined;
+      drawPlayerChip(ctx, cellRects[index], getAvatarEmoji(user.avatarId), user.name, {
+        borderColor,
+      });
     });
 
     if (drag) {
-      const user = findPlayer(room, sortItems[drag.fromIndex]);
+      const token = sortItems[drag.fromIndex];
+      const user = token ? resolveSortToken(room, token) : undefined;
       if (user) {
         const ghost: Rect = {
           x: drag.x - CELL_W / 2,
@@ -176,11 +213,18 @@ export function renderGame(): void {
           w: CELL_W,
           h: CELL_H,
         };
-        drawPlayerChip(ctx, ghost, getAvatarEmoji(user.avatarId), user.name, { active: true });
+        const borderColor =
+          room.difficulty === 'hard' && token
+            ? sortSlotBorderColor(parseSortSlot(token).cardIndex)
+            : undefined;
+        drawPlayerChip(ctx, ghost, getAvatarEmoji(user.avatarId), user.name, {
+          active: true,
+          borderColor,
+        });
       }
     }
 
-    dy += CELL_H + 12;
+    dy += sortStripH + 12;
     submitBtn = {
       id: 'submit',
       label: '排序完成，准备开车',
@@ -286,4 +330,8 @@ export function resetGameScene(): void {
   drag = null;
   clearPendingPress();
   submitBtn = null;
+}
+
+export function isGameDragging(): boolean {
+  return drag !== null || pendingPress !== null;
 }

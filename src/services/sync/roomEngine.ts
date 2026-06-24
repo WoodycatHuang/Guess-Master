@@ -60,18 +60,8 @@ export class RoomEngine {
       return { code: 'ROOM_NOT_FOUND', message: '房间不存在' };
     }
 
-    if (input.userId) {
-      const existing = findUserInRoom(room, input.userId);
-      if (existing) {
-        existing.user.name = input.name;
-        existing.user.avatarId = input.avatarId;
-        return {
-          room: cloneRoom(room),
-          self: { ...existing.user },
-          as: existing.list === 'spectators' ? 'spectator' : 'player',
-        };
-      }
-    }
+    const rejoined = this.tryRejoin(room, input);
+    if (rejoined) return rejoined;
 
     const asSpectator = isGameInProgress(room) || isRoomFull(room);
     const user = createUser(
@@ -97,6 +87,44 @@ export class RoomEngine {
       self: { ...user },
       as: 'player',
     };
+  }
+
+  /** 已在房间的玩家再次「加入」→ 复用原座位，不新建 Guest */
+  private tryRejoin(room: Room, input: JoinRoomInput): JoinRoomResult | null {
+    if (input.userId) {
+      const existing = findUserInRoom(room, input.userId);
+      if (existing) {
+        existing.user.name = input.name;
+        existing.user.avatarId = input.avatarId;
+        return {
+          room: cloneRoom(room),
+          self: { ...existing.user },
+          as: existing.list === 'spectators' ? 'spectator' : 'player',
+        };
+      }
+    }
+
+    if (room.status === 'waiting') {
+      const name = input.name.trim();
+      const matches = [...room.players, ...room.spectators].filter(
+        (u) => u.name === name,
+      );
+      if (matches.length === 1) {
+        const user = matches[0];
+        user.name = name;
+        user.avatarId = input.avatarId;
+        const as: JoinRoomResult['as'] = room.players.some((u) => u.id === user.id)
+          ? 'player'
+          : 'spectator';
+        return {
+          room: cloneRoom(room),
+          self: { ...user },
+          as,
+        };
+      }
+    }
+
+    return null;
   }
 
   leaveRoom(roomId: string, userId: string): 'updated' | 'deleted' | false {

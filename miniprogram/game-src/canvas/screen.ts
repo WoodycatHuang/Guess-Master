@@ -1,5 +1,9 @@
+import { getGmRuntime } from '../lib/runtime';
 import { fonts, theme } from './theme';
 import type { Rect } from './ui';
+
+/** 小游戏内存紧张，用 1x 画布（约节省 4 倍像素缓冲） */
+const MAX_PIXEL_RATIO = 1;
 
 export interface GameScreen {
   canvas: WechatMinigame.Canvas;
@@ -10,8 +14,6 @@ export interface GameScreen {
 }
 
 let screen: GameScreen | null = null;
-let logoImage: WechatMinigame.Image | null = null;
-let logoReady = false;
 
 export function getScreen(): GameScreen {
   if (!screen) throw new Error('Screen not initialized');
@@ -19,11 +21,17 @@ export function getScreen(): GameScreen {
 }
 
 export function initScreen(): GameScreen {
+  const rt = getGmRuntime();
+  if (rt.screen) {
+    screen = rt.screen;
+    return screen;
+  }
+
   const info = wx.getSystemInfoSync();
   const canvas = wx.createCanvas();
-  const pixelRatio = info.pixelRatio || 2;
-  canvas.width = info.screenWidth * pixelRatio;
-  canvas.height = info.screenHeight * pixelRatio;
+  const pixelRatio = Math.min(info.pixelRatio || 1, MAX_PIXEL_RATIO);
+  canvas.width = Math.round(info.screenWidth * pixelRatio);
+  canvas.height = Math.round(info.screenHeight * pixelRatio);
   const ctx = canvas.getContext('2d');
   ctx.scale(pixelRatio, pixelRatio);
 
@@ -35,25 +43,8 @@ export function initScreen(): GameScreen {
     pixelRatio,
   };
 
-  loadLogo();
+  rt.screen = screen;
   return screen;
-}
-
-function loadLogo(): void {
-  try {
-    const img = wx.createImage();
-    img.onload = () => {
-      logoReady = true;
-    };
-    img.onerror = () => {
-      logoReady = false;
-    };
-    img.src = 'assets/logo-256.png';
-    logoImage = img;
-  } catch {
-    logoReady = false;
-    logoImage = null;
-  }
 }
 
 /** 内容区顶边：避开状态栏 + 右上角胶囊菜单 */
@@ -71,7 +62,6 @@ export function getContentTop(): number {
 
   const info = wx.getSystemInfoSync();
   const safeTop = info.safeArea?.top ?? info.statusBarHeight ?? 20;
-  // 无胶囊信息时：状态栏 + 约胶囊高度
   return Math.round(safeTop + 44 + belowMenu);
 }
 
@@ -93,25 +83,16 @@ export function drawHeader(
   y: number,
 ): number {
   const cx = w / 2;
-  if (logoReady && logoImage) {
-    const size = 56;
-    ctx.drawImage(logoImage, cx - size / 2, y, size, size);
-    y += size + 8;
-  }
 
   ctx.font = fonts.title;
   ctx.fillStyle = theme.green;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('GUESS MASTER', cx, y);
+  ctx.fillText('脑波专家', cx, y);
   y += 28;
 
   ctx.font = fonts.sub;
   ctx.fillStyle = theme.gray;
-  ctx.fillText('// LOBBY', cx, y);
+  ctx.fillText('Guess Master', cx, y);
   return y + 24;
-}
-
-export function isLogoReady(): boolean {
-  return logoReady;
 }

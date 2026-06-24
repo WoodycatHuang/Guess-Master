@@ -1,4 +1,5 @@
 dist/
+game.js
 node_modules/
 .env.local
 .swc/

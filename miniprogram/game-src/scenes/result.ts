@@ -5,10 +5,12 @@ import {
   cardNumberAtSortIndex,
   evaluateSortedCards,
 } from '@shared/services/sync/roomUtils';
+import { parseSortSlot, sortSlotBorderColor } from '@shared/services/sync/sortSlots';
 import { drawFlipRevealCard, drawRoomHeader, drawTopicCard } from '../canvas/drawCommon';
 import { drawBackground, getBackButtonRect, getScreen } from '../canvas/screen';
 import { fonts, theme } from '../canvas/theme';
 import { drawButton, drawLabel, hit, type ButtonSpec, type Rect } from '../canvas/ui';
+import { pulsePaint, requestPaint } from '../lib/renderScheduler';
 import { clearSession } from '../lib/storage';
 import { roomSync } from '../lib/sync';
 import { resetGameScene } from './game';
@@ -19,6 +21,8 @@ import { teardownRoom } from './room';
 const CELL_W = 88;
 const CELL_H = 112;
 const CELL_GAP = 10;
+const REVEAL_MAX_PER_ROW = 4;
+const OUTCOME_BANNER_H = 44;
 const FLIP_DURATION_MS = 420;
 const CRACK_DURATION_MS = 280;
 
@@ -55,6 +59,7 @@ function scheduleNextFlip(room: Room): void {
 
   if (revealedCount >= room.sortOrder.length) {
     phase = 'done';
+    requestPaint();
     return;
   }
 
@@ -70,6 +75,7 @@ function scheduleNextFlip(room: Room): void {
       }
     }
     revealedCount += 1;
+    pulsePaint(FLIP_DURATION_MS + CRACK_DURATION_MS + 80);
     scheduleNextFlip(room);
   }, FLIP_INTERVAL_MS) as unknown as number;
 }
@@ -86,6 +92,34 @@ function crackProgressFor(index: number, now: number): number {
   const started = crackStartTimes[index];
   if (!started) return 1;
   return Math.min(1, (now - started) / CRACK_DURATION_MS);
+}
+
+function revealLayout(count: number, contentW: number): {
+  maxPerRow: number;
+  cellW: number;
+  cellH: number;
+  gap: number;
+} {
+  let maxPerRow = count >= 6 ? 5 : Math.min(REVEAL_MAX_PER_ROW, Math.max(1, count));
+  maxPerRow = Math.min(maxPerRow, Math.max(1, count));
+  const gap = count >= 6 ? 8 : CELL_GAP;
+  let cellW = count >= 6 ? 64 : CELL_W;
+  let cellH = count >= 6 ? 86 : CELL_H;
+  const needed = maxPerRow * cellW + (maxPerRow - 1) * gap;
+  if (needed > contentW) {
+    cellW = Math.floor((contentW - (maxPerRow - 1) * gap) / maxPerRow);
+    cellH = Math.round(cellW * (CELL_H / CELL_W));
+  }
+  return { maxPerRow, cellW, cellH, gap };
+}
+
+export function isResultAnimating(): boolean {
+  const now = Date.now();
+  for (let i = 0; i < revealedCount; i++) {
+    if (flipProgressFor(i, now) < 1) return true;
+    if (crackedIndices.has(i) && crackProgressFor(i, now) < 1) return true;
+  }
+  return false;
 }
 
 export function renderResult(): void {
@@ -125,7 +159,7 @@ export function renderResult(): void {
       ? '从左到右依次翻开，数字必须严格递增'
       : success
         ? '所有数字按从小到大排列'
-        : '出现逆序，有牌已裂开',
+        : '出现逆序，错误位置已标红',
     pad,
     y,
     theme.muted,
@@ -134,80 +168,92 @@ export function renderResult(): void {
   y += 28;
 
   cardRects = [];
-  let cx = pad;
-  room.sortOrder.forEach((userId, index) => {
+  const count = room.sortOrder.length;
+  const layout = revealLayout(count, contentW);
+  const { maxPerRow, cellW, cellH, gap } = layout;
+  const rows = Math.ceil(count / maxPerRow);
+  const revealY = y + 12;
+
+  room.sortOrder.forEach((token, index) => {
+    const { userId } = parseSortSlot(token);
     const user = room.players.find((u) => u.id === userId);
     if (!user) return;
-    const rect: Rect = { x: cx, y: y + 18, w: CELL_W, h: CELL_H };
+    const row = Math.floor(index / maxPerRow);
+    const col = index % maxPerRow;
+    const itemsInRow = Math.min(maxPerRow, count - row * maxPerRow);
+    const rowWidth = itemsInRow * cellW + (itemsInRow - 1) * gap;
+    const rowStartX = pad + (contentW - rowWidth) / 2;
+    const rect: Rect = {
+      x: rowStartX + col * (cellW + gap),
+      y: revealY + row * (cellH + gap),
+      w: cellW,
+      h: cellH,
+    };
     cardRects.push(rect);
+    const cardNumber = cardNumberAtSortIndex(room, index) ?? 0;
+    const isHard = room.difficulty === 'hard';
     drawFlipRevealCard(ctx, rect, {
       index,
       avatarEmoji: getAvatarEmoji(user.avatarId),
       name: user.name,
-      cardNumber: user.cardNumber ?? 0,
+      cardNumber,
       flipProgress: flipProgressFor(index, now),
       cracked: crackedIndices.has(index),
       crackProgress: crackProgressFor(index, now),
+      borderColor: isHard ? sortSlotBorderColor(parseSortSlot(token).cardIndex) : undefined,
     });
-    cx += CELL_W + CELL_GAP;
   });
-  y += CELL_H + 38;
+  y += rows * (cellH + gap) + 16;
 
   if (phase === 'done') {
-    const banner: Rect = { x: pad, y, w: contentW, h: 120 };
+    const banner: Rect = { x: pad, y, w: contentW, h: OUTCOME_BANNER_H };
     ctx.fillStyle = success ? 'rgba(0, 255, 255, 0.06)' : 'rgba(255, 0, 85, 0.08)';
     ctx.strokeStyle = success ? '#00FFFF' : theme.fail;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.fillRect(banner.x, banner.y, banner.w, banner.h);
     ctx.strokeRect(banner.x, banner.y, banner.w, banner.h);
-    drawLabel(ctx, success ? '🎉' : '💔', width / 2, y + 8, theme.green, fonts.title, 'center');
+    const outcomeColor = success ? '#00FFFF' : theme.fail;
+    const outcomeLine = success ? '✓  SUCCESS · 挑战成功' : '✕  FAIL · 挑战失败';
     drawLabel(
       ctx,
-      success ? 'SUCCESS' : 'FAIL',
+      outcomeLine,
       width / 2,
-      y + 36,
-      success ? '#00FFFF' : theme.fail,
-      'bold 20px monospace',
+      y + 12,
+      outcomeColor,
+      'bold 15px -apple-system, BlinkMacSystemFont, "PingFang SC", monospace',
       'center',
     );
-    drawLabel(
-      ctx,
-      success ? '挑战成功' : '挑战失败',
-      width / 2,
-      y + 64,
-      success ? '#00FFFF' : theme.fail,
-      fonts.body,
-      'center',
-    );
-    y += 132;
+    y += OUTCOME_BANNER_H + 12;
 
+    const btnH = 44;
+    const btnGap = 8;
+    const halfW = (contentW - btnGap) / 2;
     buttons = [
       {
         id: 'again',
         label: '再来一局',
         x: pad,
         y,
-        w: contentW,
-        h: 48,
+        w: halfW,
+        h: btnH,
         variant: 'primary',
       },
+      {
+        id: 'leave',
+        label: '返回大厅',
+        x: pad + halfW + btnGap,
+        y,
+        w: halfW,
+        h: btnH,
+        variant: 'secondary',
+      },
     ];
-    y += 56;
-    if (self.id !== room.hostId) {
-      drawLabel(ctx, '点击后回到等待页，需房主再次开始游戏', width / 2, y, theme.muted, fonts.small, 'center');
-      y += 24;
-    }
-    buttons.push({
-      id: 'leave',
-      label: '返回大厅',
-      x: pad,
-      y,
-      w: contentW,
-      h: 48,
-      variant: 'secondary',
-    });
     for (const btn of buttons) {
       drawButton(ctx, btn);
+    }
+    y += btnH + 8;
+    if (self.id !== room.hostId) {
+      drawLabel(ctx, '点击后回到等待页，需房主再次开始游戏', width / 2, y, theme.muted, fonts.small, 'center');
     }
   } else {
     buttons = [];

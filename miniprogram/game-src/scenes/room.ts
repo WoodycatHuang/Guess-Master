@@ -1,9 +1,17 @@
 import type { User } from '@shared/types/room';
+import { canStartHardMode } from '@shared/constants/game';
 import { getAvatarEmoji } from '@shared/constants/avatars';
+import type { GameDifficulty } from '@shared/types/room';
 import { drawBackground, getBackButtonRect, getContentTop, getScreen } from '../canvas/screen';
 import { fonts, theme } from '../canvas/theme';
 import { drawButton, drawLabel, drawPanel, hit, type ButtonSpec, type Rect } from '../canvas/ui';
-import { drawRoomIdHero, drawPlayerGrid } from '../canvas/drawCommon';
+import {
+  drawDifficultyPicker,
+  drawRoomIdHero,
+  drawPlayerGrid,
+  type DifficultyPickerLayout,
+} from '../canvas/drawCommon';
+import { pulsePaint, requestPaint } from '../lib/renderScheduler';
 import { clearSession, persistSelf } from '../lib/storage';
 import { roomSync } from '../lib/sync';
 import { goLobby } from './router';
@@ -19,6 +27,9 @@ let startHintUntil = 0;
 const START_HINT = '至少2个人才可以开始';
 const START_HINT_MS = 2800;
 
+let difficultyPickerOpen = false;
+let difficultyPickerLayout: DifficultyPickerLayout | null = null;
+
 export function initRoom(
   roomId: string,
   self: User,
@@ -32,6 +43,7 @@ export function initRoom(
   persistSelf(self.id, roomId);
 
   unsubscribe = roomSync.subscribe(roomId, (room) => {
+    requestPaint();
     const current = getRoomState();
     if (!room || !current.self) return;
     const updated =
@@ -48,6 +60,8 @@ export function teardownRoom(): void {
   }
   clearRoomState();
   startHintUntil = 0;
+  difficultyPickerOpen = false;
+  difficultyPickerLayout = null;
 }
 
 export function renderRoom(): void {
@@ -164,6 +178,22 @@ export function renderRoom(): void {
     drawButton(ctx, btn);
   }
 
+  y += btnH + btnGap;
+
+  if (isHost && !isSpectator && room.players.length < 10) {
+    const mockBtn: ButtonSpec = {
+      id: 'mock',
+      label: '+ 添加模拟玩家',
+      x: pad,
+      y,
+      w: rowW,
+      h: btnH,
+      variant: 'secondary',
+    };
+    buttons.push(mockBtn);
+    drawButton(ctx, mockBtn);
+  }
+
   if (isHost && !isSpectator && startHintUntil > Date.now()) {
     const startBtn = buttons.find((b) => b.id === 'start');
     if (startBtn) {
@@ -178,10 +208,52 @@ export function renderRoom(): void {
       );
     }
   }
+
+  if (difficultyPickerOpen) {
+    difficultyPickerLayout = drawDifficultyPicker(ctx, width, height, {
+      hardEnabled: canStartHardMode(room.players.length),
+    });
+  } else {
+    difficultyPickerLayout = null;
+  }
+}
+
+async function startWithDifficulty(difficulty: GameDifficulty): Promise<void> {
+  difficultyPickerOpen = false;
+  difficultyPickerLayout = null;
+  const self = getRoomState().self;
+  if (!self) return;
+  const result = await roomSync.startGame(getRoomState().roomId, self.id, difficulty);
+  if (result && 'code' in result) {
+    wx.showToast({ title: result.message, icon: 'none' });
+  }
 }
 
 export async function onRoomTouch(x: number, y: number): Promise<void> {
   const { width } = getScreen();
+
+  if (difficultyPickerOpen && difficultyPickerLayout) {
+    const { easy, hard, cancel } = difficultyPickerLayout;
+    if (hit(easy, x, y)) {
+      await startWithDifficulty('easy');
+      return;
+    }
+    if (hit(hard, x, y)) {
+      const room = roomSync.getRoom(getRoomState().roomId);
+      if (!room || !canStartHardMode(room.players.length)) {
+        wx.showToast({ title: '困难模式最多支持5人', icon: 'none' });
+        return;
+      }
+      await startWithDifficulty('hard');
+      return;
+    }
+    if (hit(cancel, x, y)) {
+      difficultyPickerOpen = false;
+      difficultyPickerLayout = null;
+      return;
+    }
+    return;
+  }
 
   if (backButtonRect && hit(backButtonRect, x, y)) {
     await roomSync.leaveRoom(getRoomState().roomId, getRoomState().self?.id ?? '');
@@ -210,11 +282,19 @@ export async function onRoomTouch(x: number, y: number): Promise<void> {
         startHintUntil = Date.now() + START_HINT_MS;
         return;
       }
-      if (getRoomState().self) {
-        const result = await roomSync.startGame(getRoomState().roomId, getRoomState().self!.id);
-        if (result && 'code' in result) {
-          wx.showToast({ title: result.message, icon: 'none' });
-        }
+      difficultyPickerOpen = true;
+      return;
+    }
+
+    if (btn.id === 'mock') {
+      const room = roomSync.getRoom(getRoomState().roomId);
+      if (!room || room.players.length >= 10) {
+        wx.showToast({ title: '房间已满', icon: 'none' });
+        return;
+      }
+      const updated = await roomSync.addMockGuests(getRoomState().roomId, 1);
+      if (!updated) {
+        wx.showToast({ title: '添加失败', icon: 'none' });
       }
       return;
     }

@@ -114,7 +114,7 @@ export function ResultScreen({
           ? '从左到右依次翻开，数字必须严格递增'
           : success
             ? '所有数字按从小到大排列'
-            : '出现逆序，有牌已裂开'}
+            : '出现逆序，错误位置已标红'}
       </PixelText>
 
       <ScrollView
@@ -145,13 +145,12 @@ export function ResultScreen({
             success ? styles.resultSuccess : styles.resultFail,
           ]}
         >
-          <Text style={styles.resultEmoji}>{success ? '🎉' : '💔'}</Text>
           <PixelText
             variant="titleLatin"
             tone={success ? 'success' : 'fail'}
             style={styles.resultTitle}
           >
-            {success ? 'SUCCESS' : 'FAIL'}
+            {success ? '✓ SUCCESS' : '✕ FAIL'}
           </PixelText>
           <PixelText
             variant="bodyCn"
@@ -160,7 +159,6 @@ export function ResultScreen({
           >
             {success ? '挑战成功' : '挑战失败'}
           </PixelText>
-          <Text style={styles.resultEmoji}>{success ? '🎉' : '💔'}</Text>
         </View>
       ) : (
         <View style={styles.flippingHint}>
@@ -233,10 +231,6 @@ const styles = StyleSheet.create({
   resultFail: {
     borderColor: theme.colors.fail,
     backgroundColor: 'rgba(255, 0, 85, 0.08)',
-  },
-  resultEmoji: {
-    fontSize: 28,
-    marginVertical: theme.spacing.xs,
   },
   resultTitle: {
     textAlign: 'center',

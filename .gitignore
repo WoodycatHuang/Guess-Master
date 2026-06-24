@@ -35,6 +35,9 @@ yarn-error.*
 .env*.local
 deploy/.env
 
+# runtime visitor stats (server)
+data/
+
 # typescript
 *.tsbuildinfo
 

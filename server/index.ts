@@ -12,6 +12,7 @@ import { Room } from '../src/types/room';
 import { GameActionError } from '../src/services/sync/RoomSyncService';
 import { JoinRoomError } from '../src/types/room';
 import { TOPIC_POOL } from '../src/constants/topics';
+import { getVisitorCount, recordVisit } from './visitors';
 
 const PORT = Number(process.env.SYNC_PORT ?? 8787);
 const engine = new RoomEngine(new Map<string, Room>());
@@ -98,7 +99,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/stats/visitors') {
+    sendJson(res, 200, { total: getVisitorCount() });
+    return;
+  }
+
   try {
+    if (req.method === 'POST' && url.pathname === '/stats/visit') {
+      const body = (await readBody(req)) as { deviceId?: string };
+      const deviceId = typeof body.deviceId === 'string' ? body.deviceId : '';
+      if (!deviceId.trim()) {
+        sendJson(res, 400, { message: 'deviceId required' });
+        return;
+      }
+      const result = recordVisit(deviceId);
+      sendJson(res, 200, result);
+      return;
+    }
     if (req.method === 'POST' && url.pathname === '/rooms') {
       const body = (await readBody(req)) as { name: string; avatarId: number };
       const result = engine.createRoom(body);

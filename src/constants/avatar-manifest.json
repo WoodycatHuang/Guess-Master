@@ -1,0 +1,226 @@
+[
+  {
+    "id": 1,
+    "filename": "avatar-01-smile.png",
+    "name": "smile",
+    "label": "笑脸",
+    "bg": "#0D0E15",
+    "sourceCandidate": "01"
+  },
+  {
+    "id": 2,
+    "filename": "avatar-02-cool.png",
+    "name": "cool",
+    "label": "墨镜",
+    "bg": "#0D0E15",
+    "sourceCandidate": "02"
+  },
+  {
+    "id": 3,
+    "filename": "avatar-03-ghost.png",
+    "name": "ghost",
+    "label": "幽灵",
+    "bg": "#0D0E15",
+    "sourceCandidate": "04"
+  },
+  {
+    "id": 4,
+    "filename": "avatar-04-robot.png",
+    "name": "robot",
+    "label": "机器人",
+    "bg": "#0D0E15",
+    "sourceCandidate": "05"
+  },
+  {
+    "id": 5,
+    "filename": "avatar-05-bee.png",
+    "name": "bee",
+    "label": "蜜蜂",
+    "bg": "#0D0E15",
+    "sourceCandidate": "11"
+  },
+  {
+    "id": 6,
+    "filename": "avatar-06-owl.png",
+    "name": "owl",
+    "label": "猫头鹰",
+    "bg": "#0D0E15",
+    "sourceCandidate": "12"
+  },
+  {
+    "id": 7,
+    "filename": "avatar-07-rabbit.png",
+    "name": "rabbit",
+    "label": "兔子",
+    "bg": "#0D0E15",
+    "sourceCandidate": "13"
+  },
+  {
+    "id": 8,
+    "filename": "avatar-08-diamond.png",
+    "name": "diamond",
+    "label": "钻石",
+    "bg": "#0D0E15",
+    "sourceCandidate": "22"
+  },
+  {
+    "id": 9,
+    "filename": "avatar-09-sun.png",
+    "name": "sun",
+    "label": "太阳",
+    "bg": "#0D0E15",
+    "sourceCandidate": "25"
+  },
+  {
+    "id": 10,
+    "filename": "avatar-10-mushroom.png",
+    "name": "mushroom",
+    "label": "蘑菇",
+    "bg": "#0D0E15",
+    "sourceCandidate": "31"
+  },
+  {
+    "id": 11,
+    "filename": "avatar-11-tree.png",
+    "name": "tree",
+    "label": "松树",
+    "bg": "#0D0E15",
+    "sourceCandidate": "32"
+  },
+  {
+    "id": 12,
+    "filename": "avatar-12-burger.png",
+    "name": "burger",
+    "label": "汉堡",
+    "bg": "#0D0E15",
+    "sourceCandidate": "34"
+  },
+  {
+    "id": 13,
+    "filename": "avatar-13-joystick.png",
+    "name": "joystick",
+    "label": "摇杆",
+    "bg": "#0D0E15",
+    "sourceCandidate": "41"
+  },
+  {
+    "id": 14,
+    "filename": "avatar-14-puzzle.png",
+    "name": "puzzle",
+    "label": "拼图",
+    "bg": "#0D0E15",
+    "sourceCandidate": "43"
+  },
+  {
+    "id": 15,
+    "filename": "avatar-15-trophy.png",
+    "name": "trophy",
+    "label": "奖杯",
+    "bg": "#0D0E15",
+    "sourceCandidate": "44"
+  },
+  {
+    "id": 16,
+    "filename": "avatar-16-crown.png",
+    "name": "crown",
+    "label": "皇冠",
+    "bg": "#0D0E15",
+    "sourceCandidate": "45"
+  },
+  {
+    "id": 17,
+    "filename": "avatar-17-alien.png",
+    "name": "alien",
+    "label": "外星人",
+    "bg": "#0D0E15",
+    "sourceCandidate": "06"
+  },
+  {
+    "id": 18,
+    "filename": "avatar-18-cat.png",
+    "name": "cat",
+    "label": "猫咪",
+    "bg": "#0D0E15",
+    "sourceCandidate": "07"
+  },
+  {
+    "id": 19,
+    "filename": "avatar-19-dog.png",
+    "name": "dog",
+    "label": "小狗",
+    "bg": "#0D0E15",
+    "sourceCandidate": "08"
+  },
+  {
+    "id": 20,
+    "filename": "avatar-20-cactus.png",
+    "name": "cactus",
+    "label": "仙人掌",
+    "bg": "#0D0E15",
+    "sourceCandidate": "30"
+  },
+  {
+    "id": 21,
+    "filename": "avatar-21-taco.png",
+    "name": "taco",
+    "label": "塔可",
+    "bg": "#0D0E15",
+    "sourceCandidate": "36"
+  },
+  {
+    "id": 22,
+    "filename": "avatar-22-cloud.png",
+    "name": "cloud",
+    "label": "雨云",
+    "bg": "#0D0E15",
+    "sourceCandidate": "26"
+  },
+  {
+    "id": 23,
+    "filename": "avatar-23-rocket.png",
+    "name": "rocket",
+    "label": "火箭",
+    "bg": "#0D0E15",
+    "sourceCandidate": "46"
+  },
+  {
+    "id": 24,
+    "filename": "avatar-24-ufo.png",
+    "name": "ufo",
+    "label": "飞碟",
+    "bg": "#0D0E15",
+    "sourceCandidate": "47"
+  },
+  {
+    "id": 25,
+    "filename": "avatar-25-camera.png",
+    "name": "camera",
+    "label": "相机",
+    "bg": "#0D0E15",
+    "sourceCandidate": "48"
+  },
+  {
+    "id": 26,
+    "filename": "avatar-26-gamepad.png",
+    "name": "gamepad",
+    "label": "手柄",
+    "bg": "#0D0E15",
+    "sourceCandidate": "40"
+  },
+  {
+    "id": 27,
+    "filename": "avatar-27-flower.png",
+    "name": "flower",
+    "label": "花朵",
+    "bg": "#0D0E15",
+    "sourceCandidate": "29"
+  },
+  {
+    "id": 28,
+    "filename": "avatar-28-butterfly.png",
+    "name": "butterfly",
+    "label": "蝴蝶",
+    "bg": "#0D0E15",
+    "sourceCandidate": "17"
+  }
+]

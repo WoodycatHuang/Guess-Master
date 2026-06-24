@@ -8,7 +8,8 @@ import {
 } from '@shared/services/sync/roomUtils';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 import { parseSortSlot, sortSlotBorderColor } from '@shared/services/sync/sortSlots';
-import { BackToLobbyLink } from '../components/BackToLobbyLink';
+import { PageBackNav } from '../components/PageBackNav';
+import { BrandHeader } from '../components/BrandHeader';
 import { Button } from '../components/Button';
 import { FlipRevealCard } from '../components/FlipRevealCard';
 import { clearSession, getSessionUserId } from '../lib/storage';
@@ -128,16 +129,12 @@ export default function ResultPage() {
   }
 
   const success = phase === 'done' && outcome.success;
-  const isHost = self.id === room.hostId;
 
   return (
-    <main className="page">
-      <div className="page-header">
-        <span className="hint" style={{ margin: 0 }}>
-          ROOM {room.roomId}
-        </span>
-        <BackToLobbyLink onLeave={handleLeave} />
-      </div>
+    <main className="page page--with-back-subnav">
+      <PageBackNav roomId={room.roomId} onLeave={handleLeave} />
+
+      <BrandHeader variant="compact" showLogo={false} />
 
       <div className="panel">
         <p className="field-label">本局话题</p>
@@ -198,11 +195,6 @@ export default function ResultPage() {
           <Button className="btn--block" onClick={handleAgain}>
             再来一局
           </Button>
-          {!isHost ? (
-            <p className="hint hint--ok" style={{ textAlign: 'center', margin: '4px 0' }}>
-              点击后回到等待页，需房主再次开始游戏
-            </p>
-          ) : null}
           <Button className="btn--block" variant="secondary" onClick={handleLeave}>
             返回大厅
           </Button>

@@ -11,6 +11,7 @@ import {
   type ButtonSpec,
   type Rect,
 } from '../canvas/ui';
+import { requestPaint } from '../lib/renderScheduler';
 import { promptNickname, promptRoomId } from '../lib/prompts';
 import { loadProfile, saveProfile } from '../lib/storage';
 import { isRemoteSyncEnabled, roomSync } from '../lib/sync';
@@ -46,6 +47,7 @@ export function initLobby(launchRoomId?: string): void {
     focus: 'none',
     busy: false,
   };
+  requestPaint();
 }
 
 export function renderLobby(): void {
@@ -150,6 +152,7 @@ async function handleCreate(): Promise<void> {
   if (state.busy) return;
   if (!(await ensureNickname())) return;
   state.busy = true;
+  requestPaint();
   try {
     const result = await roomSync.createRoom(profile());
     goRoom(result.room.roomId, result.self);
@@ -160,6 +163,7 @@ async function handleCreate(): Promise<void> {
     });
   } finally {
     state.busy = false;
+    requestPaint();
   }
 }
 
@@ -175,6 +179,7 @@ async function handleJoin(): Promise<void> {
     state.roomIdInput = id;
   }
   state.busy = true;
+  requestPaint();
   try {
     const result = await roomSync.joinRoom({
       ...profile(),
@@ -192,6 +197,7 @@ async function handleJoin(): Promise<void> {
     });
   } finally {
     state.busy = false;
+    requestPaint();
   }
 }
 
@@ -202,12 +208,14 @@ export async function onLobbyTouch(x: number, y: number): Promise<void> {
       state.nickname = name;
       saveProfile({ nickname: name, avatarId: state.avatarId });
     }
+    requestPaint();
     return;
   }
 
   if (hit(roomRect, x, y)) {
     const id = await promptRoomId(state.roomIdInput);
     if (id) state.roomIdInput = id;
+    requestPaint();
     return;
   }
 
@@ -215,6 +223,7 @@ export async function onLobbyTouch(x: number, y: number): Promise<void> {
     if (hit(rect, x, y)) {
       state.avatarId = rect.id;
       saveProfile({ nickname: state.nickname, avatarId: rect.id });
+      requestPaint();
       return;
     }
   }

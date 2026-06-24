@@ -5,6 +5,9 @@ set -euo pipefail
 echo "▶ API health"
 curl -sf https://api.guessmaster.cn/health | python3 -m json.tool
 
+echo "▶ API 访问统计"
+curl -sf https://api.guessmaster.cn/stats/visitors | python3 -m json.tool
+
 echo "▶ H5 首页"
 code=$(curl -so /dev/null -w '%{http_code}' https://guessmaster.cn/)
 if [[ "$code" != "200" ]]; then

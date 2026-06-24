@@ -319,7 +319,6 @@ class RemoteSyncService implements RoomSyncService {
       ws.close();
       this.sockets.delete(id);
     }
-    this.roomCache.delete(id);
   }
 }
 

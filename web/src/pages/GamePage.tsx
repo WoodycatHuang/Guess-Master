@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getAvatarEmoji } from '@shared/constants/avatars';
 import { useRoomSync } from '@shared/hooks/useRoomSync';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
-import { BackToLobbyLink } from '../components/BackToLobbyLink';
+import { PageBackNav } from '../components/PageBackNav';
+import { BrandHeader } from '../components/BrandHeader';
 import { HostSortPanel } from '../components/HostSortPanel';
 import { SortWatchPanel } from '../components/SortWatchPanel';
-import { Button } from '../components/Button';
 import { clearSession, getSessionUserId } from '../lib/storage';
 
 function findPlayer(room: import('@shared/types/room').Room, userId: string) {
@@ -66,20 +66,16 @@ export default function GamePage() {
 
   const isHost = self.id === room.hostId;
   const isPlayer = self.role === 'Host' || self.role === 'Guest';
-  const isSpectator = self.role === 'Spectator';
   const selfInRoom = findPlayer(room, self.id);
   const myCard = selfInRoom?.cardNumber ?? null;
   const myCard2 = selfInRoom?.cardNumber2 ?? null;
 
   return (
-    <main className="page page--game">
+    <main className="page page--game page--with-back-subnav">
+      <PageBackNav roomId={room.roomId} onLeave={handleLeave} />
+
       <div className="game-scroll">
-        <div className="page-header">
-          <span className="hint" style={{ margin: 0 }}>
-            ROOM {room.roomId}
-          </span>
-          <BackToLobbyLink onLeave={handleLeave} />
-        </div>
+        <BrandHeader variant="compact" showLogo={false} />
 
         {isPlayer && (
           <p className="game-hint">
@@ -108,17 +104,11 @@ export default function GamePage() {
                     <span className="card-tile__num">{myCard2}</span>
                   </div>
                 </div>
-                <p className="hint hint--ok" style={{ textAlign: 'center' }}>
-                  只有你能看到这两张牌（绿 / 青各一张）
-                </p>
               </>
             ) : (
               <>
                 <p className="field-label">YOUR CARD</p>
                 <div className="card-hero">{myCard}</div>
-                <p className="hint hint--ok" style={{ textAlign: 'center' }}>
-                  只有你能看到这张牌
-                </p>
               </>
             )}
             <p className="hint hint--ok" style={{ textAlign: 'center', marginTop: 8 }}>
@@ -127,19 +117,7 @@ export default function GamePage() {
           </div>
         )}
 
-        {!isHost && (isPlayer || isSpectator) && (
-          <p className="game-hint" style={{ marginBottom: 0 }}>
-            {isPlayer ? '房主正在排序，下方为实时顺序' : '观战中 · 下方为房主当前排序'}
-          </p>
-        )}
-
         {submitError ? <p className="toast-error">{submitError}</p> : null}
-
-        {!isHost && (
-          <Button className="btn--block" variant="secondary" onClick={handleLeave}>
-            离开房间
-          </Button>
-        )}
       </div>
 
       {isHost ? (

@@ -1,16 +1,15 @@
 {
-  "miniprogramRoot": "dist/",
   "projectname": "guess-master-minigame",
   "description": "桌游脑波专家 · 微信小游戏",
   "appid": "wxb94cbaa68a975d82",
-  "compileType": "minigame",
+  "compileType": "game",
   "setting": {
     "urlCheck": false,
-    "es6": true,
+    "es6": false,
     "enhance": false,
     "skylineRenderEnable": false,
     "postcss": false,
-    "minified": true,
+    "minified": false,
     "compileWorklet": false,
     "uglifyFileName": false,
     "uploadWithSourceMap": true,
@@ -24,15 +23,24 @@
     "condition": false,
     "swc": false,
     "disableSWC": true,
+    "ignoreDevUnusedFiles": false,
     "babelSetting": {
-      "ignore": [],
+      "ignore": ["game.js"],
       "disablePlugins": [],
       "outputPath": ""
     }
   },
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "game-src" },
+      { "type": "folder", "value": "scripts" },
+      { "type": "folder", "value": "node_modules" },
+      { "type": "folder", "value": "dist" },
+      { "type": "suffix", "value": ".ts" },
+      { "type": "file", "value": "assets/share-1280x1024.png" },
+      { "type": "file", "value": "assets/logo-512.png" }
+    ],
     "include": []
   },
   "isGameTourist": false,

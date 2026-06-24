@@ -1,5 +1,6 @@
 /** 微信小游戏运行时（精简类型） */
 declare const wx: WechatMinigame.Wx;
+declare const GameGlobal: typeof globalThis;
 declare function requestAnimationFrame(callback: () => void): number;
 declare function cancelAnimationFrame(id: number): void;
 declare function setTimeout(callback: () => void, ms: number): number;
@@ -14,12 +15,17 @@ declare namespace WechatMinigame {
     getLaunchOptionsSync(): LaunchOptions;
     getEnterOptionsSync?(): LaunchOptions;
     onShow(cb: (opts?: LaunchOptions) => void): void;
+    onHide(cb: () => void): void;
+    onMemoryWarning?(cb: (res: { level?: number }) => void): void;
     showLoading(opts: { title: string; mask?: boolean }): void;
     hideLoading(): void;
     showShareMenu(opts?: { withShareTicket?: boolean; menus?: string[] }): void;
     onTouchStart(cb: (e: TouchEvent) => void): void;
     onTouchMove(cb: (e: TouchEvent) => void): void;
     onTouchEnd(cb: (e: TouchEvent) => void): void;
+    offTouchStart(cb: (e: TouchEvent) => void): void;
+    offTouchMove(cb: (e: TouchEvent) => void): void;
+    offTouchEnd(cb: (e: TouchEvent) => void): void;
     showToast(opts: { title: string; icon?: string; duration?: number }): void;
     showModal(opts: {
       title?: string;

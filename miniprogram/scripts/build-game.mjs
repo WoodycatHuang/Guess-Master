@@ -1,5 +1,7 @@
 /**
- * 微信小游戏构建 — esbuild 打包 game-src → dist/game.js
+ * 微信小游戏构建 — esbuild 打包 game-src → game.js（与 project.config.json 同级）
+ *
+ * 标准小游戏目录：导入 miniprogram/ 即可，不要导入 dist/。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,70 +10,31 @@ import * as esbuild from 'esbuild';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const DIST = path.join(ROOT, 'dist');
+const OUTFILE = path.join(ROOT, 'game.js');
 const SHARED = path.join(ROOT, '..', 'src');
 
-function copyDir(from, to) {
-  fs.mkdirSync(to, { recursive: true });
-  for (const name of fs.readdirSync(from)) {
-    const src = path.join(from, name);
-    const dest = path.join(to, name);
-    if (fs.statSync(src).isDirectory()) {
-      copyDir(src, dest);
-    } else {
-      fs.copyFileSync(src, dest);
-    }
+function cleanStaleArtifacts() {
+  const staleDirs = ['dist', path.join(ROOT, 'pages'), path.join(ROOT, 'prebundle')];
+  for (const dir of staleDirs) {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
-}
 
-function cleanDistExtras() {
-  for (const staleDir of ['pages', 'prebundle']) {
-    fs.rmSync(path.join(DIST, staleDir), { recursive: true, force: true });
+  for (const name of [
+    'app.js',
+    'app.json',
+    'app.wxss',
+    'common.js',
+    'vendors.js',
+    'taro.js',
+    'runtime.js',
+    'base.wxml',
+    'comp.js',
+    'comp.json',
+    'comp.wxml',
+    'utils.wxs',
+  ]) {
+    fs.rmSync(path.join(ROOT, name), { force: true });
   }
-  for (const name of fs.readdirSync(DIST)) {
-    if (
-      name.endsWith('.map') ||
-      name.endsWith('.LICENSE.txt') ||
-      name === 'app.js' ||
-      name === 'app.json' ||
-      name === 'app.wxss' ||
-      name === 'common.js' ||
-      name === 'vendors.js' ||
-      name === 'taro.js' ||
-      name === 'runtime.js' ||
-      name === 'base.wxml' ||
-      name === 'comp.js' ||
-      name === 'comp.json' ||
-      name === 'comp.wxml' ||
-      name === 'utils.wxs'
-    ) {
-      fs.rmSync(path.join(DIST, name), { recursive: true, force: true });
-    }
-  }
-}
-
-function copyStaticFiles() {
-  fs.copyFileSync(path.join(ROOT, 'game.json'), path.join(DIST, 'game.json'));
-
-  const projectConfig = JSON.parse(
-    fs.readFileSync(path.join(ROOT, 'project.config.json'), 'utf8'),
-  );
-  projectConfig.miniprogramRoot = './';
-  fs.writeFileSync(
-    path.join(DIST, 'project.config.json'),
-    JSON.stringify(projectConfig, null, 2),
-  );
-
-  const assetsSrc = path.join(ROOT, 'assets');
-  if (fs.existsSync(assetsSrc)) {
-    copyDir(assetsSrc, path.join(DIST, 'assets'));
-  }
-}
-
-function afterBuild() {
-  cleanDistExtras();
-  copyStaticFiles();
-  console.log('[minigame] dist/ ready (game.js + game.json + assets)');
 }
 
 function loadSyncUrl() {
@@ -92,7 +55,7 @@ function loadSyncUrl() {
 }
 
 async function build({ watch = false } = {}) {
-  fs.mkdirSync(DIST, { recursive: true });
+  cleanStaleArtifacts();
   const syncUrl = loadSyncUrl();
   if (syncUrl) {
     console.log(`[minigame] SYNC_URL=${syncUrl}`);
@@ -101,7 +64,7 @@ async function build({ watch = false } = {}) {
   const options = {
     entryPoints: [path.join(ROOT, 'game-src/main.ts')],
     bundle: true,
-    outfile: path.join(DIST, 'game.js'),
+    outfile: OUTFILE,
     platform: 'browser',
     format: 'iife',
     target: ['es2018'],
@@ -113,32 +76,19 @@ async function build({ watch = false } = {}) {
       '@shared': SHARED,
     },
     logLevel: 'info',
+    banner: {
+      js: `console.log('[GuessMaster] game.js loaded', Date.now());`,
+    },
   };
 
   if (watch) {
-    const ctx = await esbuild.context({
-      ...options,
-      plugins: [
-        {
-          name: 'post-copy',
-          setup(build) {
-            build.onEnd((result) => {
-              if (result.errors.length === 0) {
-                afterBuild();
-              }
-            });
-          },
-        },
-      ],
-    });
+    const ctx = await esbuild.context(options);
     await ctx.rebuild();
-    afterBuild();
+    console.log('[minigame] game.js ready (watching game-src)');
     await ctx.watch();
-    console.log('[minigame] watching game-src…');
   } else {
     await esbuild.build(options);
-    console.log('[minigame] bundled dist/game.js');
-    afterBuild();
+    console.log('[minigame] bundled game.js');
   }
 }
 

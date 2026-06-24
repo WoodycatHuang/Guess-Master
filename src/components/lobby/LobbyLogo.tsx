@@ -6,10 +6,10 @@ export function LobbyLogo() {
   return (
     <View style={styles.wrap}>
       <PixelText variant="displayLatin" tone="primary" style={styles.logo}>
-        GUESS MASTER
+        脑波专家
       </PixelText>
       <PixelText variant="captionLatin" tone="muted" style={styles.tag}>
-        // LOBBY
+        Guess Master
       </PixelText>
     </View>
   );

@@ -4,11 +4,13 @@ import { useRoomSync } from '@shared/hooks/useRoomSync';
 import { isHardModeRoom, HARD_MODE_SERVER_HINT } from '@shared/services/sync/hardMode';
 import { normalizeRoomId } from '@shared/services/sync/roomKeys';
 import type { GameDifficulty } from '@shared/types/room';
-import { BackToLobbyLink } from '../components/BackToLobbyLink';
 import { Button } from '../components/Button';
+import { BrandHeader } from '../components/BrandHeader';
 import { DifficultyPicker } from '../components/DifficultyPicker';
+import { PageBackNav } from '../components/PageBackNav';
 import { RoomWaiting } from '../components/RoomWaiting';
-import { clearSession, getSessionUserId } from '../lib/storage';
+import { clearSession, getSessionUserId, loadProfile, persistSession } from '../lib/storage';
+import { findExistingMember } from '@shared/services/sync/memberLookup';
 import { getShareUrl } from '../lib/share';
 
 export default function RoomPage() {
@@ -18,12 +20,15 @@ export default function RoomPage() {
   const location = useLocation();
   const entryMessage = (location.state as { entryMessage?: string } | null)?.entryMessage;
 
-  const { room, self, setSelf, leaveRoom, startGame, playAgain } =
+  const { room, self, setSelf, leaveRoom, startGame, playAgain, joinRoom } =
     useRoomSync(roomId || null);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
+  const [syncError, setSyncError] = useState('');
+  const [syncHint, setSyncHint] = useState('正在同步房间…');
   const hadRoom = useRef(false);
+  const recoverAttempted = useRef(false);
 
   useEffect(() => {
     if (!roomId) {
@@ -39,6 +44,52 @@ export default function RoomPage() {
     }
     if (room) hadRoom.current = true;
   }, [roomId, room, navigate, setSelf]);
+
+  /** 房间已加载但未识别身份 → 尝试 API 复入，否则回大厅 */
+  useEffect(() => {
+    if (!roomId || !room || self || recoverAttempted.current) return;
+
+    const profile = loadProfile();
+    const storedUserId = getSessionUserId();
+    const existing = findExistingMember(room, profile.nickname, storedUserId ?? undefined);
+    if (existing) {
+      persistSession(existing.id, roomId);
+      setSelf(existing);
+      return;
+    }
+
+    if (!profile.nickname.trim()) {
+      navigate(`/?room=${roomId}`, { replace: true });
+      return;
+    }
+
+    recoverAttempted.current = true;
+    setSyncHint('正在加入房间…');
+
+    void (async () => {
+      const result = await joinRoom({
+        name: profile.nickname.trim(),
+        avatarId: profile.avatarId || 1,
+        roomId,
+        userId: storedUserId ?? undefined,
+      });
+      if ('code' in result) {
+        setSyncError(result.message);
+        recoverAttempted.current = false;
+        return;
+      }
+      persistSession(result.self.id, roomId);
+      setSelf(result.self);
+    })();
+  }, [roomId, room, self, joinRoom, navigate, setSelf]);
+
+  useEffect(() => {
+    if (!roomId || room) return;
+    const timer = window.setTimeout(() => {
+      setSyncError('无法连接房间，请检查网络后重试');
+    }, 12_000);
+    return () => window.clearTimeout(timer);
+  }, [roomId, room]);
 
   useEffect(() => {
     if (!room || !roomId) return;
@@ -91,7 +142,8 @@ export default function RoomPage() {
   if (!room && hadRoom.current) {
     return (
       <main className="page">
-        <h2 className="section-title" style={{ color: '#ff0055' }}>
+        <BrandHeader variant="compact" showLogo={false} />
+        <h2 className="section-title section-title--fail">
           房间已解散
         </h2>
         <p className="hint">房主已离开，房间已关闭</p>
@@ -105,7 +157,19 @@ export default function RoomPage() {
   if (!room || !self) {
     return (
       <main className="page">
-        <p className="hint">正在同步房间…</p>
+        {syncError ? (
+          <>
+            <div className="toast-error">{syncError}</div>
+            <Button
+              className="btn--block"
+              onClick={() => navigate(`/?room=${roomId}`, { replace: true })}
+            >
+              返回大厅重新加入
+            </Button>
+          </>
+        ) : (
+          <p className="hint">{syncHint}</p>
+        )}
       </main>
     );
   }
@@ -119,13 +183,12 @@ export default function RoomPage() {
   }
 
   return (
-    <main className="page">
-      <div className="page-header">
-        <BackToLobbyLink label="← 退回大厅" onLeave={handleLeave} />
-        <span className="status-pill">等待中</span>
-      </div>
+    <main className="page page--with-back-nav">
+      <PageBackNav onLeave={handleLeave} />
 
-      <h1 className="field-label">房间号</h1>
+      <BrandHeader variant="compact" showLogo={false} />
+
+      <p className="field-label field-label--pixel">房间号</p>
       <div className="room-id-hero">{roomId}</div>
 
       {error ? <div className="toast-error">{error}</div> : null}
@@ -136,12 +199,8 @@ export default function RoomPage() {
         entryMessage={entryMessage}
         onStart={handleStartClick}
         onCopyLink={handleCopyLink}
-        shareUrl={shareUrl}
+        onLeave={handleLeave}
       />
-
-      <Button className="btn--block" variant="secondary" onClick={handleLeave}>
-        离开房间
-      </Button>
 
       <DifficultyPicker
         open={pickerOpen}
